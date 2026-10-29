@@ -36,10 +36,13 @@ func New(baseURL, apiKey, userAgent string) *Client {
 		baseURL = DefaultBaseURL
 	}
 	return &Client{
-		BaseURL:    strings.TrimRight(baseURL, "/"),
-		APIKey:     apiKey,
-		UserAgent:  userAgent,
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		BaseURL:   strings.TrimRight(baseURL, "/"),
+		APIKey:    apiKey,
+		UserAgent: userAgent,
+		// A first-time card renders and publishes an image, which can take
+		// a few minutes on a cold renderer. Retrying after a timeout is safe:
+		// the server resumes the same card.
+		HTTPClient: &http.Client{Timeout: 5 * time.Minute},
 	}
 }
 
