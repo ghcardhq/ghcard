@@ -125,6 +125,16 @@ Claude Desktop, Cursor, and other clients (`mcpServers` config):
 Failed tool calls return `isError: true` with the same `code`, `retryable`
 flag and a `hint` the model can act on.
 
+## Claude Code skill
+
+`skill/githubcard/SKILL.md` teaches Claude Code (and other agents that read
+skills) when and how to use `ghcard`: the main flows, README editing, and
+what to do for each error code. Install it for your user:
+
+```bash
+mkdir -p ~/.claude/skills && cp -R skill/githubcard ~/.claude/skills/
+```
+
 ## Development
 
 ```bash
