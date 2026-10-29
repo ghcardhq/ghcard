@@ -60,7 +60,8 @@ Listing templates, palettes and components needs no key.
 
 `ghcard card` flags: `--template/-t`, `--palette/-p`, `--design/-d FILE|-`,
 `--format/-f svg|png`, `--embed/-e markdown|html|url`, `--output/-o FILE`,
-`--readme FILE`, `--snapshot`, `--no-watermark` (Pro).
+`--readme FILE`, `--snapshot`, `--dry-run` (check without creating or using
+quota), `--no-watermark` (Pro).
 
 ### Custom layouts
 
@@ -115,7 +116,8 @@ otherwise.
 
 `ghcard mcp` serves the [Model Context Protocol](https://modelcontextprotocol.io)
 over stdio. Tools: `create_card` (template or custom `design`),
-`list_templates`, `list_palettes`, `list_components`, `get_template_design`,
+`validate_card` (free dry run), `list_templates`, `list_palettes`,
+`list_components`, `get_template_design`,
 `get_card_design`, `list_cards`, `delete_card`, `get_usage`, and, only with
 `--allow-file-writes`, `update_readme`.
 

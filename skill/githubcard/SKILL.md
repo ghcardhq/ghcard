@@ -61,7 +61,8 @@ ghcard card octocat --template pro-terminal --palette sage --json
 
 Each template lists its `widgets`. `--palette` takes only preset ids; for
 any other background colour, font, size, or widget changes, use a custom
-layout (below).
+layout (below). When several templates qualify, start from the one whose
+size and widgets need the fewest edits.
 
 Template scope must match the subject: profile templates for a user,
 repo templates for `owner/repo` (templates with scope `all` fit both).
@@ -75,8 +76,12 @@ or sizes that no template has:
 ghcard components --json                                 # widget types
 ghcard design init social --subject octocat -o design.json --json   # template as JSON (free, no quota)
 # edit design.json: artboard (width, height, background.color, style.*) and layers[]
+ghcard card octocat --design design.json --dry-run --json   # free check: ids, Pro features, layout
 ghcard card octocat --design design.json --json          # publish it
 ```
+
+Always `--dry-run` an edited design first: it catches every request error
+without creating a card or using quota.
 
 Editing rules (`ghcard design --help` has the full list):
 - Layers are absolutely positioned (`x`, `y`, `width`, `height`).
@@ -85,8 +90,9 @@ Editing rules (`ghcard design --help` has the full list):
   `layer` is only stacking order; gaps are fine.
 - The subject inside the file is ignored; the `card` argument decides
   whose data is shown. `showWatermark` is decided by the server.
-- On Free, fonts and backgrounds that free templates already use are fine;
-  other Pro picks fail with `PRO_FEATURE`.
+- Any plain hex colour (`"#14213d"`) is free. On Free, the editor's Pro
+  fonts and background presets fail with `PRO_FEATURE`; fonts and
+  backgrounds that free templates already use are fine.
 
 To change an existing card: `ghcard design get <card-id> -o design.json`,
 edit, and publish again (this creates a new card; the old link keeps
@@ -99,7 +105,11 @@ link if the user would rather drag things around themselves.
 
 Flags combine in one call (one quota unit): `--design`, `--format`,
 `--output`, `--readme`. `--format` decides which link `--readme` embeds
-(SVG by default, which suits READMEs best).
+and which image `--output` saves. When the user wants a PNG file *and* a
+README card, run with `--format png --output card.png --readme README.md`:
+GitHub renders the PNG embed fine, and it costs one call. A repeat with
+other flags but the same card returns the same card (`created: false`)
+and still costs one unit.
 
 **Manage cards:** `ghcard cards list --json`, `ghcard usage --json`.
 `ghcard cards delete <id> --yes --json` breaks every place the card is
@@ -120,12 +130,14 @@ Branch on `error.code` (or the exit code), and use `error.hint`:
 | `SUBJECT_NOT_FOUND` (4) | Check spelling; private repositories are not supported |
 | `NO_API_KEY`, `UNAUTHORIZED` (3) | See "Before you start" |
 | `QUOTA_EXCEEDED` (5) | Stop. Tell the user the daily quota resets at 00:00 UTC (`error.details.resetAt`) |
-| `GITHUB_DATA_NOT_READY`, `GITHUB_CAPACITY`, `NETWORK_ERROR` (6) | Wait (`error.details.retryAfterSeconds` if present, else ~30s) and repeat the identical command |
-| `CARD_GENERATION_IN_PROGRESS` (6) | A first card can take a few minutes to render. Repeat the identical command every ~30s; it resumes the same card |
-| `CARD_GENERATION_FAILED` (6) | Retry at most twice; if it persists, stop and report a server-side rendering problem |
+| `GITHUB_DATA_NOT_READY`, `GITHUB_CAPACITY` (6) | Wait `error.details.retryAfterSeconds` (or ~30s) and repeat the identical command; at most 5 attempts in total |
+| `CARD_GENERATION_IN_PROGRESS`, `NETWORK_ERROR` (6) | A first card can take minutes to render. Wait ~30s and repeat the identical command; it resumes the same card. At most 5 attempts in total |
+| `CARD_GENERATION_FAILED` (6) | A server-side rendering failure, not your request (a `--dry-run` that passes proves the request is fine). Repeat at most 2 more times, then stop and report it |
 
-Failed calls are refunded, so retrying the identical command never costs
-extra quota. Give up after about 5 attempts and tell the user what failed.
+Failed calls are refunded (`ghcard usage` shows the same `used` before and
+after), so repeating the identical command never costs extra quota. When
+you stop, tell the user which step failed and the last `error.message`.
+`error.hint` gives the same rule for each code.
 
 ## Things to avoid
 
@@ -138,7 +150,7 @@ extra quota. Give up after about 5 attempts and tell the user what failed.
 ## MCP alternative
 
 If the GitHubCard MCP server is configured (`ghcard mcp`), its tools
-(`create_card`, `list_templates`, `list_palettes`, `list_components`,
-`get_template_design`, `get_card_design`, `list_cards`, `delete_card`,
-`get_usage`) do the same things and return the same error
+(`create_card`, `validate_card`, `list_templates`, `list_palettes`,
+`list_components`, `get_template_design`, `get_card_design`, `list_cards`,
+`delete_card`, `get_usage`) do the same things and return the same error
 codes; use whichever is available.

@@ -60,7 +60,7 @@ func textOf(res *mcp.CallToolResult) string {
 func TestToolsAreListedAndFileWritesAreOptIn(t *testing.T) {
 	noop := func(http.ResponseWriter, *http.Request) {}
 	names := strings.Join(toolNames(t, connect(t, noop, false, "k")), ",")
-	for _, want := range []string{"create_card", "list_templates", "list_palettes", "list_cards", "delete_card", "get_usage", "list_components", "get_template_design", "get_card_design"} {
+	for _, want := range []string{"create_card", "list_templates", "list_palettes", "list_cards", "delete_card", "get_usage", "list_components", "get_template_design", "get_card_design", "validate_card"} {
 		if !strings.Contains(names, want) {
 			t.Errorf("missing tool %s in %s", want, names)
 		}
@@ -207,5 +207,29 @@ func TestDesignRoundTrip(t *testing.T) {
 	}
 	if _, ok := posted["template"]; ok {
 		t.Fatalf("template must not be sent with design: %v", posted)
+	}
+}
+
+func TestValidateCardIsADryRun(t *testing.T) {
+	var path string
+	var body map[string]any
+	session := connect(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_, _ = w.Write([]byte(`{"success":true,"data":{"valid":true,"template":"custom","palette":null,"watermark":true,"artboard":{"width":1200,"height":400},"layers":3}}`))
+	}, false, "k")
+	res, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "validate_card",
+		Arguments: map[string]any{"subject": "octocat/hello-world", "design": map[string]any{"artboard": map[string]any{"width": 1200, "height": 400}, "layers": []any{}}},
+	})
+	if err != nil || res.IsError {
+		t.Fatalf("validate_card: %v %s", err, textOf(res))
+	}
+	if path != "/api/v1/cards/validate" || body["repo"] != "hello-world" || body["design"] == nil {
+		t.Fatalf("request = %s %v", path, body)
+	}
+	raw, _ := json.Marshal(res.StructuredContent)
+	if !strings.Contains(string(raw), `"valid":true`) {
+		t.Fatalf("structured = %s", raw)
 	}
 }

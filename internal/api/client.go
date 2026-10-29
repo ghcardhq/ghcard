@@ -336,6 +336,26 @@ func (c *Client) CreateCard(ctx context.Context, req CardRequest) (*CreatedCard,
 	return &out, limit, nil
 }
 
+// ValidatedCard is what a dry run of CreateCard would produce.
+type ValidatedCard struct {
+	Valid     bool    `json:"valid"`
+	Template  string  `json:"template"`
+	Palette   *string `json:"palette"`
+	Watermark bool    `json:"watermark"`
+	Artboard  Size    `json:"artboard"`
+	Layers    int     `json:"layers"`
+}
+
+// ValidateCard runs every CreateCard check without rendering, storing, or
+// using quota. It does not check that the subject exists.
+func (c *Client) ValidateCard(ctx context.Context, req CardRequest) (*ValidatedCard, error) {
+	var out ValidatedCard
+	if _, err := c.do(ctx, http.MethodPost, "/cards/validate", nil, req, true, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ListCards returns one page of the account's cards, newest requested first.
 func (c *Client) ListCards(ctx context.Context, limit int, cursor string) (*CardPage, error) {
 	q := url.Values{}

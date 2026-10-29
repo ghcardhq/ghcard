@@ -54,6 +54,8 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 			}}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(resp)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cards/validate":
+			_, _ = w.Write([]byte(`{"success":true,"data":{"valid":true,"template":"custom","palette":null,"watermark":true,"artboard":{"width":800,"height":400},"layers":2}}`))
 		case r.URL.Path == "/api/v1/templates":
 			_, _ = w.Write([]byte(`{"success":true,"data":[{"id":"a","scope":"profile","widgets":["avatar","streak"]},{"id":"b","scope":"profile","widgets":["avatar"]}]}`))
 		case r.URL.Path == "/api/v1/templates/social/design":
@@ -282,5 +284,18 @@ func TestFailedDownloadStillReturnsCardAndUpdatesReadme(t *testing.T) {
 	body, _ := os.ReadFile(readmePath)
 	if !strings.Contains(string(body), "ghcard:octocat") {
 		t.Fatalf("README not updated: %s", body)
+	}
+}
+
+func TestCardDryRunCreatesNothing(t *testing.T) {
+	srv, posts := fakeAPI(t, http.StatusCreated)
+	t.Setenv("GHCARD_BASE_URL", srv.URL)
+	t.Setenv("GHCARD_API_KEY", "{{SECRET_bt1vb4tt}}"+strings.Repeat("a", 32))
+	code, stdout, stderr := run(t, "card", "octocat", "--dry-run")
+	if code != 0 || !strings.Contains(stdout, `"valid": true`) {
+		t.Fatalf("%d %s %s", code, stdout, stderr)
+	}
+	if posts.Load() != 0 {
+		t.Fatalf("dry run created a card")
 	}
 }

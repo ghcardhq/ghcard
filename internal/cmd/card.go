@@ -27,7 +27,7 @@ type cardResult struct {
 func newCardCmd(a *app) *cobra.Command {
 	var (
 		template, palette, format, embed, outPath, readmePath, designPath string
-		noWatermark, snapshot                                             bool
+		noWatermark, snapshot, dryRun                                     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "card <user | owner/repo>",
@@ -52,6 +52,7 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
   ghcard card octocat --palette sage --embed markdown
   ghcard card octocat --format png --output card.png
   ghcard card octocat --readme README.md
+  ghcard card octocat --design design.json --dry-run
   ghcard card octocat --design design.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,6 +87,17 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 			client, err := a.client()
 			if err != nil {
 				return err
+			}
+			if dryRun {
+				checked, err := client.ValidateCard(cmd.Context(), req)
+				if err != nil {
+					return err
+				}
+				a.printer.Success(checked, func(w io.Writer) {
+					fmt.Fprintf(w, "Valid: template %s, %dx%d, %d layers, watermark %v. Nothing was created.\n",
+						checked.Template, checked.Artboard.Width, checked.Artboard.Height, checked.Layers, checked.Watermark)
+				})
+				return nil
 			}
 			a.printer.Info("Generating card for %s…", args[0])
 			card, _, err := client.CreateCard(cmd.Context(), req)
@@ -176,6 +188,7 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 	f.StringVarP(&designPath, "design", "d", "", "publish this design file (\"-\" for stdin) instead of a template")
 	f.BoolVar(&noWatermark, "no-watermark", false, "remove the watermark (Pro)")
 	f.BoolVar(&snapshot, "snapshot", false, "use the frozen image links instead of live ones")
+	f.BoolVar(&dryRun, "dry-run", false, "check the request (ids, Pro features, design) without creating a card or using quota")
 	return cmd
 }
 
