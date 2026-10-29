@@ -27,20 +27,27 @@ Typical flow:
 1. Optionally call list_templates (scope "profile" or "repo") and list_palettes to pick ids.
 2. Call create_card with the subject. It returns SVG/PNG links and Markdown/HTML embed snippets.
    It is idempotent: the same parameters return the same card and link.
-3. To place it in a README, use update_readme (or insert embed.markdown yourself).
+3. To place it in a README, use update_readme with embed.markdown (or insert it yourself).
+   Share urls (live, re-render with current data); snapshotUrls are frozen images.
 
 Custom layouts (any hex background, size, font, or adding/removing/moving widgets):
 call get_template_design (free, no quota) or get_card_design to get a design document,
 edit it, check it with validate_card (free), then pass it as create_card's "design"
 instead of template/palette.
 Design document shape:
-  artboard: {width, height (px, 100-4000), background: {color: "#hex" or CSS gradient},
+  artboard: {width, height (px, 100-4000), background: {color: a full CSS background,
+             e.g. "#1e3a5f" or "radial-gradient(...) 0 0 / 22px 22px #0d1117"; a plain hex
+             replaces any texture, so change only the trailing colour to keep it},
              style: {fontFamily, textColor, secondaryTextColor, accentColor, radius}}
   layers:   [{id (unique), type (from list_components), x, y, width, height (px from the
              artboard's top-left), layer (stacking order), style, ...widget settings}]
 Layers are absolutely positioned: removing one leaves its space empty, and anything
-outside the artboard is clipped, so move or resize neighbours yourself. The subject,
-owner and watermark in the document are decided by the server and ignored.
+outside the artboard is clipped, so move or resize neighbours yourself (validate_card
+warns about clipped layers). Keep version and any other fields you do not change;
+dataSource, ownerId, meta and showWatermark are replaced by the server.
+Widgets scale to their box. Text colours come from artboard.style (textColor,
+secondaryTextColor, accentColor) or a layer's style; when you change the background a
+lot, set them too so text stays readable.
 Plain hex colours are free. On Free, the editor's Pro fonts and background presets fail
 with PRO_FEATURE (details.features lists each path); fonts and backgrounds that free
 templates already use are fine.
@@ -192,7 +199,7 @@ type UsageOutput struct {
 type UpdateReadmeInput struct {
 	Path    string `json:"path" jsonschema:"path to the Markdown file; relative paths resolve against the MCP server's working directory, so prefer an absolute path"`
 	Subject string `json:"subject" jsonschema:"the card's subject (username or owner/repo); used to find an existing block"`
-	Snippet string `json:"snippet" jsonschema:"the embed.markdown value returned by create_card"`
+	Snippet string `json:"snippet" jsonschema:"the embed.markdown value returned by create_card. A new block goes after the file's first heading (or at the top); an existing block for the subject is replaced"`
 }
 
 type UpdateReadmeOutput struct {
@@ -230,7 +237,7 @@ func New(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "validate_card",
 		Title:       "Check a card request",
-		Description: "Dry run of create_card with the same inputs: checks template/palette ids, Pro features and the design document, without creating anything or using quota. Use it before create_card when you have edited a design.",
+		Description: "Dry run of create_card with the same inputs: checks template/palette ids, Pro features and the design document, without creating anything or using quota. warnings lists layers that reach outside the artboard (they would be clipped); fix those before create_card.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in CreateCardInput) (*mcp.CallToolResult, *api.ValidatedCard, error) {
 		req, err := cardRequest(in)
@@ -375,7 +382,7 @@ func New(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_usage",
 		Title:       "Get plan and quota",
-		Description: "Show the account's plan (free/pro) and how many cards it can still create today.",
+		Description: "Show the account's plan (free/pro) and how many cards it can still create today (cards.remaining, resets 00:00 UTC). The ai quota is reserved for future AI tools.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ Empty) (*mcp.CallToolResult, UsageOutput, error) {
 		account, err := c.Usage(ctx)

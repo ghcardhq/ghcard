@@ -41,8 +41,9 @@ every push. Each call counts once against the daily card quota.
 Links are live by default: they re-render with current GitHub data. Use
 --snapshot for the immutable image captured when the card was created.
 
---format picks which link is printed, downloaded by --output, and embedded by
---readme (svg by default). All flags combine; one call costs one quota unit.
+--format picks which link is printed and which image --output saves (svg by
+default). --readme always embeds the live SVG link, which renders sharpest on
+GitHub. All flags combine; one call costs one quota unit.
 
 Without --template the subject's default layout is used. --design publishes a
 custom layout instead (see 'ghcard design'); Pro fonts and backgrounds in it
@@ -96,6 +97,9 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 				a.printer.Success(checked, func(w io.Writer) {
 					fmt.Fprintf(w, "Valid: template %s, %dx%d, %d layers, watermark %v. Nothing was created.\n",
 						checked.Template, checked.Artboard.Width, checked.Artboard.Height, checked.Layers, checked.Watermark)
+					for _, warning := range checked.Warnings {
+						fmt.Fprintf(w, "  Warning: %s\n", warning)
+					}
 				})
 				return nil
 			}

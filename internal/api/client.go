@@ -338,12 +338,14 @@ func (c *Client) CreateCard(ctx context.Context, req CardRequest) (*CreatedCard,
 
 // ValidatedCard is what a dry run of CreateCard would produce.
 type ValidatedCard struct {
-	Valid     bool    `json:"valid"`
-	Template  string  `json:"template"`
-	Palette   *string `json:"palette"`
-	Watermark bool    `json:"watermark"`
-	Artboard  Size    `json:"artboard"`
-	Layers    int     `json:"layers"`
+	Valid bool `json:"valid"`
+	// Warnings are layout problems that still render, such as clipped layers.
+	Warnings  []string `json:"warnings"`
+	Template  string   `json:"template"`
+	Palette   *string  `json:"palette"`
+	Watermark bool     `json:"watermark"`
+	Artboard  Size     `json:"artboard"`
+	Layers    int      `json:"layers"`
 }
 
 // ValidateCard runs every CreateCard check without rendering, storing, or

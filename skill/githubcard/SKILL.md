@@ -81,7 +81,14 @@ ghcard card octocat --design design.json --json          # publish it
 ```
 
 Always `--dry-run` an edited design first: it catches every request error
-without creating a card or using quota.
+without creating a card or using quota, and `data.warnings` lists layers
+that reach outside the artboard (they would be clipped). Fix warnings
+before publishing. When you darken or lighten the background a lot, also
+set `artboard.style.textColor` / `secondaryTextColor` so text stays readable.
+
+Prefer a template that already has exactly the widgets the user wants
+(`--widget` to filter, then check each candidate's `widgets` for ones to
+avoid); edit layers only when no template fits.
 
 Editing rules (`ghcard design --help` has the full list):
 - Layers are absolutely positioned (`x`, `y`, `width`, `height`).
@@ -90,6 +97,10 @@ Editing rules (`ghcard design --help` has the full list):
   `layer` is only stacking order; gaps are fine.
 - The subject inside the file is ignored; the `card` argument decides
   whose data is shown. `showWatermark` is decided by the server.
+- `artboard.background.color` is a full CSS background: a hex colour, or a
+  gradient/pattern such as `radial-gradient(...) 0 0 / 22px 22px #0d1117`.
+  Replacing it with a hex removes the template's texture; to keep the
+  texture, change only the trailing base colour.
 - Any plain hex colour (`"#14213d"`) is free. On Free, the editor's Pro
   fonts and background presets fail with `PRO_FEATURE`; fonts and
   backgrounds that free templates already use are fine.
@@ -104,12 +115,14 @@ link if the user would rather drag things around themselves.
 `ghcard card octocat --format png --output card.png --json`.
 
 Flags combine in one call (one quota unit): `--design`, `--format`,
-`--output`, `--readme`. `--format` decides which link `--readme` embeds
-and which image `--output` saves. When the user wants a PNG file *and* a
-README card, run with `--format png --output card.png --readme README.md`:
-GitHub renders the PNG embed fine, and it costs one call. A repeat with
-other flags but the same card returns the same card (`created: false`)
-and still costs one unit.
+`--output`, `--readme`. `--format` decides which link is printed and which
+image `--output` saves; `--readme` always embeds the live SVG link. So a
+PNG file *and* a README card is one call:
+`--format png --output card.png --readme README.md`.
+
+Links: share `data.urls` (live: they re-render with current GitHub data).
+`data.snapshotUrls` are frozen images of the moment the card was created;
+use them only when the user asks for an image that never changes.
 
 **Manage cards:** `ghcard cards list --json`, `ghcard usage --json`.
 `ghcard cards delete <id> --yes --json` breaks every place the card is
