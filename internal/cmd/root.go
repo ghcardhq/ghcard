@@ -116,6 +116,8 @@ https://githubcard.com/dashboard, then run 'ghcard auth login'.`,
 	root.AddCommand(
 		newCardCmd(a),
 		newCardsCmd(a),
+		newDesignCmd(a),
+		newOpenCmd(a),
 		newTemplatesCmd(a),
 		newPalettesCmd(a),
 		newComponentsCmd(a),

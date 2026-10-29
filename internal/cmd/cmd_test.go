@@ -16,6 +16,9 @@ import (
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/output"
 )
 
+// lastBody is the most recent POST /cards body fakeAPI received.
+var lastBody map[string]any
+
 // fakeAPI serves just enough of /api/v1 for command tests.
 func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
@@ -27,6 +30,7 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 			posts.Add(1)
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
+			lastBody = body
 			if cardStatus != http.StatusCreated {
 				w.WriteHeader(cardStatus)
 				_, _ = w.Write([]byte(`{"success":false,"code":"PRO_TEMPLATE","message":"Template \"pro-x\" requires GitHubCard Pro.","retryable":false}`))
@@ -46,6 +50,8 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 			}}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(resp)
+		case r.URL.Path == "/api/v1/templates/social/design":
+			_, _ = w.Write([]byte(`{"success":true,"data":{"version":1,"artboard":{"width":1200,"height":630},"layers":[]}}`))
 		case r.URL.Path == "/g/pub.svg":
 			_, _ = w.Write([]byte("<svg/>"))
 		case r.URL.Path == "/api/v1/usage":
@@ -198,5 +204,39 @@ func TestParseSubject(t *testing.T) {
 	}
 	if _, _, err := parseSubject("a/b/c"); err == nil {
 		t.Error("expected error for a/b/c")
+	}
+}
+
+func TestDesignInitThenCardWithDesign(t *testing.T) {
+	srv, _ := fakeAPI(t, http.StatusCreated)
+	t.Setenv("GHCARD_BASE_URL", srv.URL)
+	t.Setenv("GHCARD_API_KEY", "{{SECRET_bt1vb4tt}}"+strings.Repeat("a", 32))
+	path := filepath.Join(t.TempDir(), "design.json")
+
+	// Piped without --json: the bare document, so `> design.json` works.
+	code, stdout, stderr := run(t, "design", "init", "social")
+	if code != 0 || !strings.HasPrefix(stdout, "{\n") || strings.Contains(stdout, `"ok"`) {
+		t.Fatalf("init stdout: code=%d out=%q err=%q", code, stdout, stderr)
+	}
+	if code, _, stderr = run(t, "design", "init", "social", "-o", path); code != 0 {
+		t.Fatalf("init -o: %d %s", code, stderr)
+	}
+
+	code, stdout, stderr = run(t, "card", "octocat", "--design", path)
+	if code != 0 {
+		t.Fatalf("card --design: %d %s %s", code, stdout, stderr)
+	}
+	design, ok := lastBody["design"].(map[string]any)
+	if !ok || design["artboard"] == nil {
+		t.Fatalf("posted design = %v", lastBody)
+	}
+
+	if code, _, _ = run(t, "card", "octocat", "--design", path, "--template", "social"); code != output.ExitUsage {
+		t.Fatalf("--design with --template should be a usage error, got %d", code)
+	}
+	bad := filepath.Join(t.TempDir(), "bad.json")
+	_ = os.WriteFile(bad, []byte("[1]"), 0o644)
+	if code, _, _ = run(t, "card", "octocat", "--design", bad); code != output.ExitUsage {
+		t.Fatalf("non-object design should be a usage error, got %d", code)
 	}
 }

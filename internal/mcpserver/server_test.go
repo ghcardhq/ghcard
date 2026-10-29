@@ -60,7 +60,7 @@ func textOf(res *mcp.CallToolResult) string {
 func TestToolsAreListedAndFileWritesAreOptIn(t *testing.T) {
 	noop := func(http.ResponseWriter, *http.Request) {}
 	names := strings.Join(toolNames(t, connect(t, noop, false, "k")), ",")
-	for _, want := range []string{"create_card", "list_templates", "list_palettes", "list_cards", "delete_card", "get_usage"} {
+	for _, want := range []string{"create_card", "list_templates", "list_palettes", "list_cards", "delete_card", "get_usage", "list_components", "get_template_design", "get_card_design"} {
 		if !strings.Contains(names, want) {
 			t.Errorf("missing tool %s in %s", want, names)
 		}
@@ -154,5 +154,58 @@ func TestUpdateReadmeEditsOnlyMarkdown(t *testing.T) {
 	})
 	if !res.IsError {
 		t.Fatal("non-Markdown files must be refused")
+	}
+}
+
+func TestDesignRoundTrip(t *testing.T) {
+	var posted map[string]any
+	var templatePath, templateQuery string
+	session := connect(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/templates/"):
+			templatePath, templateQuery = r.URL.Path, r.URL.RawQuery
+			_, _ = w.Write([]byte(`{"success":true,"data":{"version":1,"artboard":{"width":1200,"height":630},"layers":[{"id":"a","type":"avatar"}]}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cards":
+			_ = json.NewDecoder(r.Body).Decode(&posted)
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"success":false,"code":"PRO_FEATURE","message":"The font \"Kalam\" requires Pro.","retryable":false,"features":[{"feature":"font","name":"Kalam"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}, false, "k")
+	ctx := context.Background()
+
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_template_design",
+		Arguments: map[string]any{"template": "repo-og-compact", "subject": "octocat/hello-world"},
+	})
+	if err != nil || res.IsError {
+		t.Fatalf("get_template_design: %v %s", err, textOf(res))
+	}
+	if templatePath != "/api/v1/templates/repo-og-compact/design" || !strings.Contains(templateQuery, "repo=hello-world") {
+		t.Fatalf("request = %s?%s", templatePath, templateQuery)
+	}
+	var out DesignOutput
+	raw, _ := json.Marshal(res.StructuredContent)
+	_ = json.Unmarshal(raw, &out)
+	if out.Design["artboard"] == nil {
+		t.Fatalf("design = %s", raw)
+	}
+
+	res, err = session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "create_card",
+		Arguments: map[string]any{"subject": "octocat/hello-world", "design": out.Design},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError || !strings.Contains(textOf(res), "PRO_FEATURE") || !strings.Contains(textOf(res), "free ones") {
+		t.Fatalf("want PRO_FEATURE with hint, got %s", textOf(res))
+	}
+	if d, ok := posted["design"].(map[string]any); !ok || d["layers"] == nil {
+		t.Fatalf("posted = %v", posted)
+	}
+	if _, ok := posted["template"]; ok {
+		t.Fatalf("template must not be sent with design: %v", posted)
 	}
 }

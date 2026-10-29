@@ -219,6 +219,8 @@ type CardRequest struct {
 	Palette   string `json:"palette,omitempty"`
 	Format    string `json:"format,omitempty"`
 	Watermark *bool  `json:"watermark,omitempty"`
+	// Design is a full design document used instead of Template/Palette.
+	Design json.RawMessage `json:"design,omitempty"`
 }
 
 type CardURLs struct {
@@ -347,6 +349,36 @@ func (c *Client) ListCards(ctx context.Context, limit int, cursor string) (*Card
 		return nil, err
 	}
 	return &out, nil
+}
+
+// CardDesign returns a card's design document, ready to edit and send back
+// as CardRequest.Design.
+func (c *Client) CardDesign(ctx context.Context, id string) (json.RawMessage, error) {
+	var out json.RawMessage
+	if _, err := c.do(ctx, http.MethodGet, "/cards/"+url.PathEscape(id)+"/design", nil, nil, true, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TemplateDesign returns a template's layout as a design document for the
+// given subject (repo empty for a profile). No key needed, no quota used.
+func (c *Client) TemplateDesign(ctx context.Context, template, username, repo, palette string) (json.RawMessage, error) {
+	q := url.Values{}
+	if username != "" {
+		q.Set("username", username)
+	}
+	if repo != "" {
+		q.Set("repo", repo)
+	}
+	if palette != "" {
+		q.Set("palette", palette)
+	}
+	var out json.RawMessage
+	if _, err := c.do(ctx, http.MethodGet, "/templates/"+url.PathEscape(template)+"/design", q, nil, false, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // DeleteCard deletes a card. Its links stop working.

@@ -23,8 +23,8 @@ type cardResult struct {
 
 func newCardCmd(a *app) *cobra.Command {
 	var (
-		template, palette, format, embed, outPath, readmePath string
-		noWatermark, snapshot                                 bool
+		template, palette, format, embed, outPath, readmePath, designPath string
+		noWatermark, snapshot                                             bool
 	)
 	cmd := &cobra.Command{
 		Use:   "card <user | owner/repo>",
@@ -38,13 +38,15 @@ every push. Each call counts once against the daily card quota.
 Links are live by default: they re-render with current GitHub data. Use
 --snapshot for the immutable image captured when the card was created.
 
-Without --template the subject's default layout is used. Free accounts always
-get the watermark; --no-watermark needs Pro.`,
+Without --template the subject's default layout is used. --design publishes a
+custom layout instead (see 'ghcard design'); Pro fonts and backgrounds in it
+need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 		Example: `  ghcard card octocat
   ghcard card octocat/hello-world --template repo-dark-terminal
   ghcard card octocat --palette sage --embed markdown
   ghcard card octocat --format png --output card.png
-  ghcard card octocat --readme README.md`,
+  ghcard card octocat --readme README.md
+  ghcard card octocat --design design.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			username, repo, err := parseSubject(args[0])
@@ -61,6 +63,14 @@ get the watermark; --no-watermark needs Pro.`,
 			req := api.CardRequest{Username: username, Template: template, Palette: palette, Format: format}
 			if repo != "" {
 				req.Type, req.Repo = "repo", repo
+			}
+			if designPath != "" {
+				if template != "" || palette != "" {
+					return &output.UsageError{Msg: "--design cannot be combined with --template or --palette"}
+				}
+				if req.Design, err = readDesign(cmd, designPath); err != nil {
+					return err
+				}
 			}
 			if noWatermark {
 				off := false
@@ -153,6 +163,7 @@ get the watermark; --no-watermark needs Pro.`,
 	f.StringVarP(&embed, "embed", "e", "", "print only a snippet: markdown, html, or url")
 	f.StringVarP(&outPath, "output", "o", "", "also download the image to this file")
 	f.StringVar(&readmePath, "readme", "", "insert or update the card's Markdown in this file")
+	f.StringVarP(&designPath, "design", "d", "", "publish this design file (\"-\" for stdin) instead of a template")
 	f.BoolVar(&noWatermark, "no-watermark", false, "remove the watermark (Pro)")
 	f.BoolVar(&snapshot, "snapshot", false, "use the frozen image links instead of live ones")
 	return cmd

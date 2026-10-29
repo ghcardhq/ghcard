@@ -29,6 +29,11 @@ Typical flow:
    It is idempotent: the same parameters return the same card and link.
 3. To place it in a README, use update_readme (or insert embed.markdown yourself).
 
+Custom layouts: call get_template_design (free, no quota) or get_card_design to get a
+design document, change the artboard or layers (list_components names the widget
+types), and pass it as create_card's "design" instead of template/palette.
+Pro fonts and backgrounds in a design fail with PRO_FEATURE on Free accounts.
+
 Each create_card call counts against a daily quota (get_usage shows what is left).
 Do not call create_card in a loop to "refresh" a card: the link always shows live data.
 Free accounts always get a small watermark.`
@@ -89,6 +94,10 @@ func toToolError(err error) error {
 		te.Hint = "Call list_palettes and use one of its ids, or omit palette."
 	case apiErr.Code == "PRO_TEMPLATE":
 		te.Hint = "That template needs Pro. Pick one with pro=false, or tell the user."
+	case apiErr.Code == "PRO_FEATURE":
+		te.Hint = "The design uses a Pro font or background (details.features). Replace them with free ones, or tell the user it needs Pro."
+	case apiErr.Code == "INVALID_DESIGN":
+		te.Hint = "Fix the design as the message says. Start from get_template_design if unsure of the shape."
 	case apiErr.Code == "SUBJECT_NOT_FOUND":
 		te.Hint = "Check the username/repository spelling; private repositories are not supported."
 	case te.Retryable:
@@ -100,11 +109,26 @@ func toToolError(err error) error {
 // --- Tool inputs and outputs ---------------------------------------------
 
 type CreateCardInput struct {
-	Subject   string `json:"subject" jsonschema:"GitHub username (e.g. octocat) or owner/repo (e.g. octocat/hello-world)"`
-	Template  string `json:"template,omitempty" jsonschema:"template id from list_templates; omit for the subject's default layout"`
-	Palette   string `json:"palette,omitempty" jsonschema:"background palette id from list_palettes; omit for the template's own background"`
-	Format    string `json:"format,omitempty" jsonschema:"svg (default) or png: which link to return as url"`
-	Watermark *bool  `json:"watermark,omitempty" jsonschema:"false removes the watermark (Pro only; ignored on Free)"`
+	Subject   string         `json:"subject" jsonschema:"GitHub username (e.g. octocat) or owner/repo (e.g. octocat/hello-world)"`
+	Template  string         `json:"template,omitempty" jsonschema:"template id from list_templates; omit for the subject's default layout"`
+	Palette   string         `json:"palette,omitempty" jsonschema:"background palette id from list_palettes; omit for the template's own background"`
+	Format    string         `json:"format,omitempty" jsonschema:"svg (default) or png: which link to return as url"`
+	Watermark *bool          `json:"watermark,omitempty" jsonschema:"false removes the watermark (Pro only; ignored on Free)"`
+	Design    map[string]any `json:"design,omitempty" jsonschema:"a design document from get_template_design or get_card_design, possibly edited; replaces template and palette"`
+}
+
+type TemplateDesignInput struct {
+	Template string `json:"template" jsonschema:"template id from list_templates"`
+	Subject  string `json:"subject,omitempty" jsonschema:"username or owner/repo the card is for; decides profile vs repo layouts"`
+	Palette  string `json:"palette,omitempty" jsonschema:"palette id to apply"`
+}
+
+type DesignOutput struct {
+	Design map[string]any `json:"design"`
+}
+
+type ListComponentsOutput struct {
+	Components []api.Component `json:"components"`
 }
 
 type CreateCardOutput struct {
@@ -179,6 +203,16 @@ func New(opts Options) *mcp.Server {
 			return nil, CreateCardOutput{}, err
 		}
 		req := api.CardRequest{Username: username, Template: in.Template, Palette: in.Palette, Format: in.Format, Watermark: in.Watermark}
+		if in.Design != nil {
+			if in.Template != "" || in.Palette != "" {
+				return nil, CreateCardOutput{}, &toolError{Code: "INVALID_REQUEST", Message: "pass either design or template/palette, not both"}
+			}
+			raw, err := json.Marshal(in.Design)
+			if err != nil {
+				return nil, CreateCardOutput{}, &toolError{Code: "INVALID_REQUEST", Message: err.Error()}
+			}
+			req.Design = raw
+		}
 		if repo != "" {
 			req.Type, req.Repo = "repo", repo
 		}
@@ -225,6 +259,58 @@ func New(opts Options) *mcp.Server {
 			return nil, ListPalettesOutput{}, toToolError(err)
 		}
 		return nil, ListPalettesOutput{Palettes: palettes.Palettes}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_components",
+		Title:       "List widget types",
+		Description: "List the widget (layer) types a design can contain, with the scope (profile/repo) each fits.",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ Empty) (*mcp.CallToolResult, ListComponentsOutput, error) {
+		components, err := c.Components(ctx)
+		if err != nil {
+			return nil, ListComponentsOutput{}, toToolError(err)
+		}
+		return nil, ListComponentsOutput{Components: components}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_template_design",
+		Title:       "Get a template's design",
+		Description: "Return a template's layout as an editable design document (artboard + layers). Costs no quota. Edit it and pass it to create_card as design.",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in TemplateDesignInput) (*mcp.CallToolResult, DesignOutput, error) {
+		if strings.TrimSpace(in.Template) == "" {
+			return nil, DesignOutput{}, &toolError{Code: "INVALID_REQUEST", Message: "template is required"}
+		}
+		var username, repo string
+		if in.Subject != "" {
+			var err error
+			if username, repo, err = splitSubject(in.Subject); err != nil {
+				return nil, DesignOutput{}, err
+			}
+		}
+		raw, err := c.TemplateDesign(ctx, in.Template, username, repo, in.Palette)
+		if err != nil {
+			return nil, DesignOutput{}, toToolError(err)
+		}
+		return designOutput(raw)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_card_design",
+		Title:       "Get a card's design",
+		Description: "Return the design document of one of the account's cards, to edit and re-submit through create_card as design (which creates a new card; the original is unchanged).",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in DeleteCardInput) (*mcp.CallToolResult, DesignOutput, error) {
+		if strings.TrimSpace(in.ID) == "" {
+			return nil, DesignOutput{}, &toolError{Code: "INVALID_REQUEST", Message: "id is required"}
+		}
+		raw, err := c.CardDesign(ctx, in.ID)
+		if err != nil {
+			return nil, DesignOutput{}, toToolError(err)
+		}
+		return designOutput(raw)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -291,6 +377,14 @@ func New(opts Options) *mcp.Server {
 	}
 
 	return server
+}
+
+func designOutput(raw json.RawMessage) (*mcp.CallToolResult, DesignOutput, error) {
+	var design map[string]any
+	if err := json.Unmarshal(raw, &design); err != nil {
+		return nil, DesignOutput{}, &toolError{Code: "BAD_RESPONSE", Message: err.Error()}
+	}
+	return nil, DesignOutput{Design: design}, nil
 }
 
 // Run serves over stdio until the client disconnects.

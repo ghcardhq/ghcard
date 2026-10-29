@@ -48,6 +48,9 @@ Listing templates, palettes and components needs no key.
 | `ghcard card <user\|owner/repo>` | Create a card, or reuse the identical one, and print its links |
 | `ghcard cards list [--all]` | List the cards your account generated |
 | `ghcard cards delete <id>... [--yes]` | Delete cards; their links stop working |
+| `ghcard design init <template> [-o FILE]` | Write a template's layout as an editable design (no key, no quota) |
+| `ghcard design get <card-id> [-o FILE]` | Export one of your cards' design |
+| `ghcard open <card-id> [--print]` | Open a card in the web editor |
 | `ghcard templates [--scope profile\|repo] [--free]` | Layout ids for `--template` |
 | `ghcard palettes` | Background ids for `--palette` |
 | `ghcard components` | Widget types a card can contain |
@@ -55,9 +58,22 @@ Listing templates, palettes and components needs no key.
 | `ghcard auth login\|status\|logout` | Manage the stored key |
 | `ghcard mcp` | Run as an MCP server for AI agents |
 
-`ghcard card` flags: `--template/-t`, `--palette/-p`, `--format/-f svg|png`,
-`--embed/-e markdown|html|url`, `--output/-o FILE`, `--readme FILE`,
-`--no-watermark` (Pro).
+`ghcard card` flags: `--template/-t`, `--palette/-p`, `--design/-d FILE|-`,
+`--format/-f svg|png`, `--embed/-e markdown|html|url`, `--output/-o FILE`,
+`--readme FILE`, `--snapshot`, `--no-watermark` (Pro).
+
+### Custom layouts
+
+```bash
+ghcard design init social -o design.json      # or: ghcard design get <card-id> -o design.json
+$EDITOR design.json                           # artboard size/colours/fonts, layers[]
+ghcard card octocat --design design.json
+```
+
+The design's own subject is ignored; the `card` argument decides whose data
+it shows. Layer types come from `ghcard components`. On Free, Pro fonts and
+backgrounds fail with `PRO_FEATURE`. See
+[Custom designs](../docs/public-api.md#custom-designs).
 
 ### Idempotent by design
 
@@ -98,8 +114,9 @@ otherwise.
 ## MCP server
 
 `ghcard mcp` serves the [Model Context Protocol](https://modelcontextprotocol.io)
-over stdio. Tools: `create_card`, `list_templates`, `list_palettes`,
-`list_cards`, `delete_card`, `get_usage`, and, only with
+over stdio. Tools: `create_card` (template or custom `design`),
+`list_templates`, `list_palettes`, `list_components`, `get_template_design`,
+`get_card_design`, `list_cards`, `delete_card`, `get_usage`, and, only with
 `--allow-file-writes`, `update_readme`.
 
 Claude Code:
