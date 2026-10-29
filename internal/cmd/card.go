@@ -19,6 +19,9 @@ type cardResult struct {
 	Output     string `json:"output,omitempty"`
 	ReadmePath string `json:"readmePath,omitempty"`
 	ReadmeEdit string `json:"readmeEdit,omitempty"`
+	// Warnings are problems after the card was created, such as a failed
+	// download. The card and its links are still valid.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 func newCardCmd(a *app) *cobra.Command {
@@ -108,14 +111,15 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 
 			result := cardResult{CreatedCard: card}
 			if outPath != "" {
-				body, _, err := client.Download(cmd.Context(), card.URL)
-				if err != nil {
-					return err
+				// The card exists and costs quota already; a failed download
+				// must not hide it or skip the README update.
+				if body, _, err := client.Download(cmd.Context(), card.URL); err != nil {
+					result.Warnings = append(result.Warnings, fmt.Sprintf("download failed (%v); fetch %s later", err, card.URL))
+				} else if err := os.WriteFile(outPath, body, 0o644); err != nil {
+					result.Warnings = append(result.Warnings, fmt.Sprintf("write %s: %v", outPath, err))
+				} else {
+					result.Output = outPath
 				}
-				if err := os.WriteFile(outPath, body, 0o644); err != nil {
-					return fmt.Errorf("write %s: %w", outPath, err)
-				}
-				result.Output = outPath
 			}
 			if readmePath != "" {
 				snippet := card.Embed.Markdown
@@ -153,6 +157,9 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,
 				}
 				if result.ReadmePath != "" {
 					fmt.Fprintf(w, "  README    %s (%s)\n", result.ReadmePath, result.ReadmeEdit)
+				}
+				for _, warning := range result.Warnings {
+					fmt.Fprintf(w, "  Warning   %s\n", warning)
 				}
 				fmt.Fprintf(w, "Quota: %d of %d cards left today\n", card.Usage.Remaining, card.Usage.Limit)
 			})

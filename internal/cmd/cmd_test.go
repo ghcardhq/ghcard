@@ -41,9 +41,13 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 				subject += "/" + repo
 			}
 			svg := srv.URL + "/g/pub.svg"
+			url := svg
+			if body["format"] == "png" {
+				url = srv.URL + "/g/pub.png"
+			}
 			resp := map[string]any{"success": true, "data": map[string]any{
 				"id": "card000000000001", "created": true, "subject": subject, "template": "social",
-				"watermark": true, "url": svg,
+				"watermark": true, "url": url,
 				"urls":  map[string]string{"svg": svg, "png": srv.URL + "/g/pub.png"},
 				"embed": map[string]string{"markdown": "[![GitHubCard for " + subject + "](" + svg + ")](https://github.com/" + subject + ")", "html": "<a></a>"},
 				"usage": map[string]any{"used": 1, "limit": 100, "remaining": 99},
@@ -256,5 +260,27 @@ func TestTemplatesFilterByWidget(t *testing.T) {
 	_ = json.Unmarshal([]byte(stdout), &out)
 	if len(out.Data) != 1 || out.Data[0].ID != "a" {
 		t.Fatalf("filtered = %s", stdout)
+	}
+}
+
+func TestFailedDownloadStillReturnsCardAndUpdatesReadme(t *testing.T) {
+	srv, _ := fakeAPI(t, http.StatusCreated)
+	t.Setenv("GHCARD_BASE_URL", srv.URL)
+	t.Setenv("GHCARD_API_KEY", "{{SECRET_bt1vb4tt}}"+strings.Repeat("a", 32))
+	dir := t.TempDir()
+	readmePath := filepath.Join(dir, "README.md")
+	_ = os.WriteFile(readmePath, []byte("# Hi\n"), 0o644)
+
+	// --format png points the download at /g/pub.png, which fakeAPI 404s.
+	code, stdout, stderr := run(t, "card", "octocat", "--format", "png", "--output", filepath.Join(dir, "c.png"), "--readme", readmePath)
+	if code != 0 {
+		t.Fatalf("exit %d: %s %s", code, stdout, stderr)
+	}
+	if !strings.Contains(stdout, `"warnings"`) || !strings.Contains(stdout, "download failed") {
+		t.Fatalf("expected a download warning: %s", stdout)
+	}
+	body, _ := os.ReadFile(readmePath)
+	if !strings.Contains(string(body), "ghcard:octocat") {
+		t.Fatalf("README not updated: %s", body)
 	}
 }
