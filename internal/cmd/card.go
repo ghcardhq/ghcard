@@ -24,7 +24,7 @@ type cardResult struct {
 func newCardCmd(a *app) *cobra.Command {
 	var (
 		template, palette, format, embed, outPath, readmePath string
-		noWatermark                                           bool
+		noWatermark, snapshot                                 bool
 	)
 	cmd := &cobra.Command{
 		Use:   "card <user | owner/repo>",
@@ -34,6 +34,9 @@ func newCardCmd(a *app) *cobra.Command {
 The request is idempotent: the same subject, template, palette and watermark
 setting always return the same card and link, so it is safe to run in CI on
 every push. Each call counts once against the daily card quota.
+
+Links are live by default: they re-render with current GitHub data. Use
+--snapshot for the immutable image captured when the card was created.
 
 Without --template the subject's default layout is used. Free accounts always
 get the watermark; --no-watermark needs Pro.`,
@@ -77,6 +80,19 @@ get the watermark; --no-watermark needs Pro.`,
 				a.printer.Info("Note: the watermark stays on for Free accounts.")
 			}
 
+			if snapshot {
+				// Swap every link for the immutable publication captured now.
+				card.URLs = card.SnapshotURLs
+				card.URL = card.SnapshotURLs.SVG
+				if format == "png" {
+					card.URL = card.SnapshotURLs.PNG
+				}
+				alt := "GitHubCard for " + card.Subject
+				href := "https://github.com/" + card.Subject
+				card.Embed.Markdown = fmt.Sprintf("[![%s](%s)](%s)", alt, card.SnapshotURLs.SVG, href)
+				card.Embed.HTML = fmt.Sprintf(`<a href="%s"><img src="%s" alt="%s"></a>`, href, card.SnapshotURLs.SVG, alt)
+			}
+
 			result := cardResult{CreatedCard: card}
 			if outPath != "" {
 				body, _, err := client.Download(cmd.Context(), card.URL)
@@ -117,6 +133,7 @@ get the watermark; --no-watermark needs Pro.`,
 				fmt.Fprintf(w, "  SVG       %s\n", card.URLs.SVG)
 				fmt.Fprintf(w, "  PNG       %s\n", card.URLs.PNG)
 				fmt.Fprintf(w, "  Markdown  %s\n", card.Embed.Markdown)
+				fmt.Fprintf(w, "  Edit      %s\n", card.EditURL)
 				if result.Output != "" {
 					abs, _ := filepath.Abs(result.Output)
 					fmt.Fprintf(w, "  Saved     %s\n", abs)
@@ -137,6 +154,7 @@ get the watermark; --no-watermark needs Pro.`,
 	f.StringVarP(&outPath, "output", "o", "", "also download the image to this file")
 	f.StringVar(&readmePath, "readme", "", "insert or update the card's Markdown in this file")
 	f.BoolVar(&noWatermark, "no-watermark", false, "remove the watermark (Pro)")
+	f.BoolVar(&snapshot, "snapshot", false, "use the frozen image links instead of live ones")
 	return cmd
 }
 

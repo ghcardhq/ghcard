@@ -240,17 +240,21 @@ type Usage struct {
 
 // Card is one generated, published card.
 type Card struct {
-	ID            string    `json:"id"`
-	PublicationID string    `json:"publicationId"`
-	Type          string    `json:"type"`
-	Subject       string    `json:"subject"`
-	Template      string    `json:"template"`
-	Palette       *string   `json:"palette"`
-	Watermark     bool      `json:"watermark"`
-	URLs          CardURLs  `json:"urls"`
-	Embed         CardEmbed `json:"embed"`
-	CreatedAt     string    `json:"createdAt"`
-	UpdatedAt     string    `json:"updatedAt"`
+	ID            string  `json:"id"`
+	DesignID      string  `json:"designId"`
+	PublicationID string  `json:"publicationId"`
+	Type          string  `json:"type"`
+	Subject       string  `json:"subject"`
+	Template      string  `json:"template"`
+	Palette       *string `json:"palette"`
+	Watermark     bool    `json:"watermark"`
+	// URLs re-render with current GitHub data; SnapshotURLs never change.
+	URLs         CardURLs  `json:"urls"`
+	SnapshotURLs CardURLs  `json:"snapshotUrls"`
+	Embed        CardEmbed `json:"embed"`
+	EditURL      string    `json:"editUrl"`
+	CreatedAt    string    `json:"createdAt"`
+	UpdatedAt    string    `json:"updatedAt"`
 }
 
 // CreatedCard is the POST /cards response.
