@@ -136,8 +136,9 @@ type CreateCardOutput struct {
 }
 
 type ListTemplatesInput struct {
-	Scope    string `json:"scope,omitempty" jsonschema:"profile or repo; omit for all"`
-	FreeOnly bool   `json:"freeOnly,omitempty" jsonschema:"only templates available on the Free plan"`
+	Scope    string   `json:"scope,omitempty" jsonschema:"profile or repo; omit for all"`
+	FreeOnly bool     `json:"freeOnly,omitempty" jsonschema:"only templates available on the Free plan"`
+	Widgets  []string `json:"widgets,omitempty" jsonschema:"only templates containing all of these widget types (from list_components)"`
 }
 
 type ListTemplatesOutput struct {
@@ -226,7 +227,7 @@ func New(opts Options) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_templates",
 		Title:       "List card templates",
-		Description: "List card layouts with their ids, scope (profile/repo/all), size, and whether they need Pro.",
+		Description: "List card layouts with their ids, scope (profile/repo/all), size, widget types, and whether they need Pro.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &openWorld},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ListTemplatesInput) (*mcp.CallToolResult, ListTemplatesOutput, error) {
 		if in.Scope != "" && in.Scope != "profile" && in.Scope != "repo" {
@@ -240,6 +241,15 @@ func New(opts Options) *mcp.Server {
 			kept := templates[:0]
 			for _, t := range templates {
 				if !t.Pro {
+					kept = append(kept, t)
+				}
+			}
+			templates = kept
+		}
+		if len(in.Widgets) > 0 {
+			kept := templates[:0]
+			for _, t := range templates {
+				if containsAll(t.Widgets, in.Widgets) {
 					kept = append(kept, t)
 				}
 			}
@@ -407,4 +417,20 @@ func splitSubject(subject string) (string, string, error) {
 		Code:    "INVALID_REQUEST",
 		Message: fmt.Sprintf("%q is not a GitHub username or owner/repo", subject),
 	}
+}
+
+func containsAll(have, want []string) bool {
+	for _, w := range want {
+		found := false
+		for _, h := range have {
+			if strings.EqualFold(h, w) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }

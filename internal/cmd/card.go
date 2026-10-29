@@ -38,6 +38,9 @@ every push. Each call counts once against the daily card quota.
 Links are live by default: they re-render with current GitHub data. Use
 --snapshot for the immutable image captured when the card was created.
 
+--format picks which link is printed, downloaded by --output, and embedded by
+--readme (svg by default). All flags combine; one call costs one quota unit.
+
 Without --template the subject's default layout is used. --design publishes a
 custom layout instead (see 'ghcard design'); Pro fonts and backgrounds in it
 need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`,

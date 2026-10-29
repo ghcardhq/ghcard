@@ -50,6 +50,8 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 			}}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(resp)
+		case r.URL.Path == "/api/v1/templates":
+			_, _ = w.Write([]byte(`{"success":true,"data":[{"id":"a","scope":"profile","widgets":["avatar","streak"]},{"id":"b","scope":"profile","widgets":["avatar"]}]}`))
 		case r.URL.Path == "/api/v1/templates/social/design":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"version":1,"artboard":{"width":1200,"height":630},"layers":[]}}`))
 		case r.URL.Path == "/g/pub.svg":
@@ -238,5 +240,21 @@ func TestDesignInitThenCardWithDesign(t *testing.T) {
 	_ = os.WriteFile(bad, []byte("[1]"), 0o644)
 	if code, _, _ = run(t, "card", "octocat", "--design", bad); code != output.ExitUsage {
 		t.Fatalf("non-object design should be a usage error, got %d", code)
+	}
+}
+
+func TestTemplatesFilterByWidget(t *testing.T) {
+	srv, _ := fakeAPI(t, http.StatusCreated)
+	t.Setenv("GHCARD_BASE_URL", srv.URL)
+	code, stdout, stderr := run(t, "templates", "--widget", "Streak")
+	if code != 0 {
+		t.Fatalf("%d %s", code, stderr)
+	}
+	var out struct {
+		Data []struct{ ID string } `json:"data"`
+	}
+	_ = json.Unmarshal([]byte(stdout), &out)
+	if len(out.Data) != 1 || out.Data[0].ID != "a" {
+		t.Fatalf("filtered = %s", stdout)
 	}
 }

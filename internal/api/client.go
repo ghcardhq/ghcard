@@ -278,15 +278,16 @@ type Size struct {
 }
 
 type Template struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	Category     string `json:"category"`
-	Scope        string `json:"scope"`
-	Size         Size   `json:"size"`
-	OGCompatible bool   `json:"ogCompatible"`
-	Pro          bool   `json:"pro"`
-	Family       string `json:"family,omitempty"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Category     string   `json:"category"`
+	Scope        string   `json:"scope"`
+	Size         Size     `json:"size"`
+	OGCompatible bool     `json:"ogCompatible"`
+	Pro          bool     `json:"pro"`
+	Widgets      []string `json:"widgets"`
+	Family       string   `json:"family,omitempty"`
 }
 
 type Palette struct {

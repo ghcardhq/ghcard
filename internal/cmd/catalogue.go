@@ -16,6 +16,7 @@ import (
 func newTemplatesCmd(a *app) *cobra.Command {
 	var scope string
 	var freeOnly bool
+	var widgets []string
 	cmd := &cobra.Command{
 		Use:   "templates",
 		Short: "List card layouts (ids for --template)",
@@ -41,6 +42,15 @@ func newTemplatesCmd(a *app) *cobra.Command {
 				}
 				templates = kept
 			}
+			if len(widgets) > 0 {
+				kept := templates[:0]
+				for _, t := range templates {
+					if hasAllWidgets(t.Widgets, widgets) {
+						kept = append(kept, t)
+					}
+				}
+				templates = kept
+			}
 			a.printer.Success(templates, func(w io.Writer) {
 				rows := make([][]string, 0, len(templates))
 				for _, t := range templates {
@@ -57,6 +67,7 @@ func newTemplatesCmd(a *app) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&scope, "scope", "s", "", "only templates for profile or repo cards")
 	cmd.Flags().BoolVar(&freeOnly, "free", false, "only templates available on the Free plan")
+	cmd.Flags().StringSliceVarP(&widgets, "widget", "w", nil, "only templates containing these widget types (see `ghcard components`)")
 	return cmd
 }
 
@@ -266,4 +277,21 @@ history), and is checked against the API before it is saved.`,
 
 	cmd.AddCommand(login, status, logout)
 	return cmd
+}
+
+// hasAllWidgets reports whether have contains every type in want.
+func hasAllWidgets(have, want []string) bool {
+	for _, w := range want {
+		found := false
+		for _, h := range have {
+			if strings.EqualFold(h, w) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }

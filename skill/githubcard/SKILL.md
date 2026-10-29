@@ -1,6 +1,6 @@
 ---
 name: githubcard
-description: Create embeddable GitHub profile and repository card images with the ghcard CLI, and add them to README files. Use when the user wants a GitHub stats card, a profile card, a repo card or banner, a social preview image for a repository, or to put such a card in a README or profile README (github.com/<user>/<user>). Also covers listing, deleting, and checking quota for GitHubCard cards.
+description: Create embeddable GitHub profile and repository card images with the ghcard CLI, design custom card layouts, and add them to README files. Use when the user wants a GitHub stats card, a profile card, a repo card or banner, a social preview image for a repository, or to put such a card in a README or profile README (github.com/<user>/<user>). Also covers listing, deleting, and checking quota for GitHubCard cards.
 ---
 
 # GitHubCard cards with `ghcard`
@@ -54,17 +54,52 @@ committing; do not commit or push unless they ask.
 
 ```bash
 ghcard templates --scope profile --free --json   # or --scope repo
+ghcard templates --scope profile --free --widget streak --json   # must contain these widgets
 ghcard palettes --json
 ghcard card octocat --template pro-terminal --palette sage --json
 ```
+
+Each template lists its `widgets`. `--palette` takes only preset ids; for
+any other background colour, font, size, or widget changes, use a custom
+layout (below).
 
 Template scope must match the subject: profile templates for a user,
 repo templates for `owner/repo` (templates with scope `all` fit both).
 Prefer templates with `"pro": false` unless the user has Pro
 (`ghcard usage --json` → `data.tier`).
 
+**Custom layout** when the user wants specific widgets, colours, fonts,
+or sizes that no template has:
+
+```bash
+ghcard components --json                                 # widget types
+ghcard design init social --subject octocat -o design.json --json   # template as JSON (free, no quota)
+# edit design.json: artboard (width, height, background.color, style.*) and layers[]
+ghcard card octocat --design design.json --json          # publish it
+```
+
+Editing rules (`ghcard design --help` has the full list):
+- Layers are absolutely positioned (`x`, `y`, `width`, `height`).
+  Removing one leaves its space empty; widen or move neighbours to fill it.
+- Keep each layer's `id` unique and its `type` from `ghcard components`.
+  `layer` is only stacking order; gaps are fine.
+- The subject inside the file is ignored; the `card` argument decides
+  whose data is shown. `showWatermark` is decided by the server.
+- On Free, fonts and backgrounds that free templates already use are fine;
+  other Pro picks fail with `PRO_FEATURE`.
+
+To change an existing card: `ghcard design get <card-id> -o design.json`,
+edit, and publish again (this creates a new card; the old link keeps
+working until deleted). Keep each layer's `id` unique and its `type` from
+`ghcard components`. `ghcard open <card-id> --print` gives the web editor
+link if the user would rather drag things around themselves.
+
 **Download the image** instead of linking it:
 `ghcard card octocat --format png --output card.png --json`.
+
+Flags combine in one call (one quota unit): `--design`, `--format`,
+`--output`, `--readme`. `--format` decides which link `--readme` embeds
+(SVG by default, which suits READMEs best).
 
 **Manage cards:** `ghcard cards list --json`, `ghcard usage --json`.
 `ghcard cards delete <id> --yes --json` breaks every place the card is
@@ -80,10 +115,17 @@ Branch on `error.code` (or the exit code), and use `error.hint`:
 | `UNKNOWN_PALETTE` (2) | List palettes, or drop `--palette` |
 | `INVALID_REQUEST` (2) | Fix the argument named in `error.details.field` |
 | `PRO_TEMPLATE` (1) | Pick a free template, or tell the user it needs Pro |
+| `PRO_FEATURE` (1) | The design uses a Pro font/background (`error.details.features` lists each `path`); swap them for free ones or tell the user |
+| `INVALID_DESIGN` (2) | Fix the design as `error.message` says; re-start from `ghcard design init` if unsure |
 | `SUBJECT_NOT_FOUND` (4) | Check spelling; private repositories are not supported |
 | `NO_API_KEY`, `UNAUTHORIZED` (3) | See "Before you start" |
 | `QUOTA_EXCEEDED` (5) | Stop. Tell the user the daily quota resets at 00:00 UTC (`error.details.resetAt`) |
-| `GITHUB_DATA_NOT_READY`, `GITHUB_CAPACITY`, other `retryable: true` (6) | Wait (`error.details.retryAfterSeconds` if present) and retry once |
+| `GITHUB_DATA_NOT_READY`, `GITHUB_CAPACITY`, `NETWORK_ERROR` (6) | Wait (`error.details.retryAfterSeconds` if present, else ~30s) and repeat the identical command |
+| `CARD_GENERATION_IN_PROGRESS` (6) | A first card can take a few minutes to render. Repeat the identical command every ~30s; it resumes the same card |
+| `CARD_GENERATION_FAILED` (6) | Retry at most twice; if it persists, stop and report a server-side rendering problem |
+
+Failed calls are refunded, so retrying the identical command never costs
+extra quota. Give up after about 5 attempts and tell the user what failed.
 
 ## Things to avoid
 
@@ -96,6 +138,7 @@ Branch on `error.code` (or the exit code), and use `error.hint`:
 ## MCP alternative
 
 If the GitHubCard MCP server is configured (`ghcard mcp`), its tools
-(`create_card`, `list_templates`, `list_palettes`, `list_cards`,
-`delete_card`, `get_usage`) do the same things and return the same error
+(`create_card`, `list_templates`, `list_palettes`, `list_components`,
+`get_template_design`, `get_card_design`, `list_cards`, `delete_card`,
+`get_usage`) do the same things and return the same error
 codes; use whichever is available.

@@ -24,8 +24,19 @@ background, fonts, colours) and its layers (widgets with position, size and
 settings). Start from a template or an existing card, edit the JSON, then
 publish it with 'ghcard card <subject> --design design.json'.
 
-The subject in a design file is ignored: the card command's argument decides
-whose data the card shows. Widget types are listed by 'ghcard components'.`,
+Use a design when a template plus --palette is not enough: any hex background,
+other fonts or colours, a different size, or adding/removing/moving widgets.
+
+Editing rules:
+  - The subject in a design file is ignored: the card command's argument
+    decides whose data the card shows.
+  - Layers are absolutely positioned (x, y, width, height). Removing one leaves
+    its space empty; move or resize the others to fill it.
+  - Each layer needs a unique "id" and a "type" from 'ghcard components';
+    "layer" is only the stacking order and need not be contiguous.
+  - artboard.showWatermark is decided by the server (Free: always on).
+  - On Free, Pro fonts and backgrounds fail with PRO_FEATURE; fonts and
+    backgrounds that free templates already use are fine.`,
 		Example: `  ghcard design init social -o design.json
   ghcard design init repo-og-compact --subject octocat/hello-world -o design.json
   ghcard design get Qm3x8LkP2aZr7TnB -o design.json
