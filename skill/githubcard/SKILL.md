@@ -101,7 +101,9 @@ Editing rules (`ghcard design --help` has the full list):
   gradient/pattern such as `radial-gradient(...) 0 0 / 22px 22px #0d1117`.
   Replacing it with a hex removes the template's texture; to keep the
   texture, change only the trailing base colour.
-- Any plain hex colour (`"#14213d"`) is free. On Free, the editor's Pro
+- Any plain solid colour (`"#14213d"`) is free; gradients and patterns
+  are free only when they are a free preset, a `ghcard palettes` palette,
+  or a free template's own background. On Free, the editor's Pro
   fonts and background presets fail with `PRO_FEATURE`; fonts and
   backgrounds that free templates already use are fine.
 
