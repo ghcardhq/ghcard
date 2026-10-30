@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/mcpserver"
+	"github.com/Cactusinhand/ghcard/internal/mcpserver"
 )
 
 func newMCPCmd(a *app) *cobra.Command {

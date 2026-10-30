@@ -11,9 +11,13 @@ show live GitHub data, so a card never needs regenerating to stay current.
 
 ## Before you start
 
-1. Check the CLI is installed: `ghcard --version`. If it is missing:
-   `go install github.com/Cactusinhand/GithubCard-web/cli/cmd/ghcard@latest`
-   (needs Go 1.25+), and make sure `$(go env GOPATH)/bin` is on `PATH`.
+1. Check the CLI is installed: `ghcard --version`. If it is missing, download
+   the archive for the platform from
+   https://github.com/Cactusinhand/ghcard/releases/latest
+   (`ghcard_<darwin|linux|windows>_<amd64|arm64>`), unpack it and put
+   `ghcard` on `PATH`; or, with Go 1.25+,
+   `go install github.com/Cactusinhand/ghcard/cmd/ghcard@latest` and make
+   sure `$(go env GOPATH)/bin` is on `PATH`.
 2. Check auth: `ghcard auth status --json`.
    - Exit code 3 / `NO_API_KEY` or `UNAUTHORIZED`: the user needs a key from
      https://githubcard.com/dashboard. Ask them to run

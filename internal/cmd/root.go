@@ -6,18 +6,30 @@ import (
 	"errors"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/config"
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/output"
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/subject"
+	"github.com/Cactusinhand/ghcard/internal/api"
+	"github.com/Cactusinhand/ghcard/internal/config"
+	"github.com/Cactusinhand/ghcard/internal/output"
+	"github.com/Cactusinhand/ghcard/internal/subject"
 )
 
 // Version is set at build time with -ldflags "-X .../cmd.Version=v1.2.3".
+// `go install ...@v1.2.3` sets no ldflags, so the module version Go records
+// in the binary is used instead.
 var Version = "dev"
+
+func init() {
+	if Version != "dev" {
+		return
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(info.Main.Version, "v") {
+		Version = info.Main.Version
+	}
+}
 
 type app struct {
 	flagKey     string

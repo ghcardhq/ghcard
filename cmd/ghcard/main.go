@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/cmd"
+	"github.com/Cactusinhand/ghcard/internal/cmd"
 )
 
 func main() {

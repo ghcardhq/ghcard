@@ -16,9 +16,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/readme"
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/subject"
+	"github.com/Cactusinhand/ghcard/internal/api"
+	"github.com/Cactusinhand/ghcard/internal/readme"
+	"github.com/Cactusinhand/ghcard/internal/subject"
 )
 
 const instructions = `GitHubCard turns a GitHub user or repository into an embeddable card image.

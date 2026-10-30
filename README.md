@@ -13,14 +13,29 @@ ghcard card octocat -f png -o card.png  # download the image
 
 ## Install
 
+Download the archive for your platform from
+[Releases](https://github.com/Cactusinhand/ghcard/releases/latest), unpack it,
+and put `ghcard` on your `PATH`. Archives are named
+`ghcard_<os>_<arch>` (`darwin`/`linux`/`windows`, `amd64`/`arm64`), so the
+latest one has a stable link. For example, on macOS with Apple silicon:
+
 ```bash
-go install github.com/Cactusinhand/GithubCard-web/cli/cmd/ghcard@latest
+curl -fsSL https://github.com/Cactusinhand/ghcard/releases/latest/download/ghcard_darwin_arm64.tar.gz | tar -xz ghcard
 ```
 
-Or build from this directory, stamping a version:
+Or, with Go 1.25+:
 
 ```bash
-go build -ldflags "-X github.com/Cactusinhand/GithubCard-web/cli/internal/cmd.Version=v0.1.0" -o ghcard ./cmd/ghcard
+go install github.com/Cactusinhand/ghcard/cmd/ghcard@latest
+```
+
+## Releasing
+
+Push a `v*` tag; the release workflow builds macOS, Linux and Windows
+binaries with GoReleaser and attaches them to a GitHub release.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
 ## Authenticate

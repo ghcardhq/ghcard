@@ -1,4 +1,4 @@
-module github.com/Cactusinhand/GithubCard-web/cli
+module github.com/Cactusinhand/ghcard
 
 go 1.25.0
 
