@@ -4,7 +4,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/config"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/output"
+	"github.com/Cactusinhand/GithubCard-web/cli/internal/subject"
 )
 
 // Version is set at build time with -ldflags "-X .../cmd.Version=v1.2.3".
@@ -128,17 +128,11 @@ https://githubcard.com/dashboard, then run 'ghcard auth login'.`,
 	return root
 }
 
-// parseSubject turns "user" or "user/repo" into its parts.
+// parseSubject turns "user" or "user/repo" (or a GitHub URL) into its parts.
 func parseSubject(arg string) (username, repo string, err error) {
-	arg = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(arg, "https://github.com/"), "github.com/"))
-	arg = strings.TrimSuffix(arg, "/")
-	parts := strings.Split(arg, "/")
-	switch {
-	case len(parts) == 1 && parts[0] != "":
-		return parts[0], "", nil
-	case len(parts) == 2 && parts[0] != "" && parts[1] != "":
-		return parts[0], parts[1], nil
-	default:
-		return "", "", &output.UsageError{Msg: fmt.Sprintf("%q is not a GitHub user or owner/repo", arg)}
+	username, repo, err = subject.Parse(arg)
+	if err != nil {
+		return "", "", &output.UsageError{Msg: err.Error()}
 	}
+	return username, repo, nil
 }

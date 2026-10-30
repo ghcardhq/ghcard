@@ -374,6 +374,15 @@ func (c *Client) ListCards(ctx context.Context, limit int, cursor string) (*Card
 	return &out, nil
 }
 
+// GetCard returns one of the account's cards.
+func (c *Client) GetCard(ctx context.Context, id string) (*Card, error) {
+	var out Card
+	if _, err := c.do(ctx, http.MethodGet, "/cards/"+url.PathEscape(id), nil, nil, true, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // CardDesign returns a card's design document, ready to edit and send back
 // as CardRequest.Design.
 func (c *Client) CardDesign(ctx context.Context, id string) (json.RawMessage, error) {

@@ -54,6 +54,8 @@ func fakeAPI(t *testing.T, cardStatus int) (*httptest.Server, *atomic.Int32) {
 			}}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(resp)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cards/card000000000001":
+			_, _ = w.Write([]byte(`{"success":true,"data":{"id":"card000000000001","editUrl":"https://githubcard.com/octocat/card/edit?d=d1"}}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cards/validate":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"valid":true,"template":"custom","palette":null,"watermark":true,"artboard":{"width":800,"height":400},"layers":2}}`))
 		case r.URL.Path == "/api/v1/templates":
@@ -297,5 +299,18 @@ func TestCardDryRunCreatesNothing(t *testing.T) {
 	}
 	if posts.Load() != 0 {
 		t.Fatalf("dry run created a card")
+	}
+}
+
+func TestOpenPrintsEditorLinkFromOneLookup(t *testing.T) {
+	srv, _ := fakeAPI(t, http.StatusCreated)
+	t.Setenv("GHCARD_BASE_URL", srv.URL)
+	t.Setenv("GHCARD_API_KEY", "{{SECRET_bt1vb4tt}}"+strings.Repeat("a", 32))
+	code, stdout, stderr := run(t, "open", "card000000000001", "--print")
+	if code != 0 || !strings.Contains(stdout, "/octocat/card/edit?d=d1") {
+		t.Fatalf("%d %s %s", code, stdout, stderr)
+	}
+	if code, _, _ = run(t, "open", "card000000000002", "--print"); code != output.ExitNotFound {
+		t.Fatalf("unknown card should exit %d, got %d", output.ExitNotFound, code)
 	}
 }

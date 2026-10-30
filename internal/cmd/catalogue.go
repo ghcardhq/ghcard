@@ -11,6 +11,7 @@ import (
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/config"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/output"
+	"github.com/Cactusinhand/GithubCard-web/cli/internal/subject"
 )
 
 func newTemplatesCmd(a *app) *cobra.Command {
@@ -45,7 +46,7 @@ func newTemplatesCmd(a *app) *cobra.Command {
 			if len(widgets) > 0 {
 				kept := templates[:0]
 				for _, t := range templates {
-					if hasAllWidgets(t.Widgets, widgets) {
+					if subject.HasAllWidgets(t.Widgets, widgets) {
 						kept = append(kept, t)
 					}
 				}
@@ -277,21 +278,4 @@ history), and is checked against the API before it is saved.`,
 
 	cmd.AddCommand(login, status, logout)
 	return cmd
-}
-
-// hasAllWidgets reports whether have contains every type in want.
-func hasAllWidgets(have, want []string) bool {
-	for _, w := range want {
-		found := false
-		for _, h := range have {
-			if strings.EqualFold(h, w) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }

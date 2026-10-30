@@ -11,7 +11,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/output"
 )
 
@@ -151,7 +150,7 @@ func newOpenCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			card, err := findCard(cmd, client, args[0])
+			card, err := client.GetCard(cmd.Context(), args[0])
 			if err != nil {
 				return err
 			}
@@ -168,25 +167,6 @@ func newOpenCmd(a *app) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&printOnly, "print", false, "print the editor link without opening a browser")
 	return cmd
-}
-
-func findCard(cmd *cobra.Command, client *api.Client, id string) (*api.Card, error) {
-	cursor := ""
-	for {
-		page, err := client.ListCards(cmd.Context(), 100, cursor)
-		if err != nil {
-			return nil, err
-		}
-		for i := range page.Cards {
-			if page.Cards[i].ID == id {
-				return &page.Cards[i], nil
-			}
-		}
-		if page.NextCursor == nil {
-			return nil, &api.Error{Status: 404, Code: "CARD_NOT_FOUND", Message: "Card not found"}
-		}
-		cursor = *page.NextCursor
-	}
 }
 
 func openBrowser(target string) error {

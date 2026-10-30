@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/api"
 	"github.com/Cactusinhand/GithubCard-web/cli/internal/readme"
+	"github.com/Cactusinhand/GithubCard-web/cli/internal/subject"
 )
 
 const instructions = `GitHubCard turns a GitHub user or repository into an embeddable card image.
@@ -48,7 +48,8 @@ dataSource, ownerId, meta and showWatermark are replaced by the server.
 Widgets scale to their box. Text colours come from artboard.style (textColor,
 secondaryTextColor, accentColor) or a layer's style; when you change the background a
 lot, set them too so text stays readable.
-Plain hex colours are free. On Free, the editor's Pro fonts and background presets fail
+Plain solid colours are free; gradients and patterns are free only when they are a free
+preset, a list_palettes palette, or a free template's own background. On Free, the editor's Pro fonts and background presets fail
 with PRO_FEATURE (details.features lists each path); fonts and backgrounds that free
 templates already use are fine.
 Failed create_card calls are refunded. A first card can take a while to render: on
@@ -276,7 +277,7 @@ func New(opts Options) *mcp.Server {
 		if len(in.Widgets) > 0 {
 			kept := templates[:0]
 			for _, t := range templates {
-				if containsAll(t.Widgets, in.Widgets) {
+				if subject.HasAllWidgets(t.Widgets, in.Widgets) {
 					kept = append(kept, t)
 				}
 			}
@@ -452,35 +453,10 @@ func Run(ctx context.Context, opts Options) error {
 	return New(opts).Run(ctx, &mcp.StdioTransport{})
 }
 
-func splitSubject(subject string) (string, string, error) {
-	s := strings.TrimSpace(subject)
-	s = strings.TrimPrefix(strings.TrimPrefix(s, "https://"), "github.com/")
-	s = strings.TrimSuffix(s, "/")
-	parts := strings.Split(s, "/")
-	switch {
-	case len(parts) == 1 && parts[0] != "":
-		return parts[0], "", nil
-	case len(parts) == 2 && parts[0] != "" && parts[1] != "":
-		return parts[0], parts[1], nil
+func splitSubject(input string) (string, string, error) {
+	username, repo, err := subject.Parse(input)
+	if err != nil {
+		return "", "", &toolError{Code: "INVALID_REQUEST", Message: err.Error()}
 	}
-	return "", "", &toolError{
-		Code:    "INVALID_REQUEST",
-		Message: fmt.Sprintf("%q is not a GitHub username or owner/repo", subject),
-	}
-}
-
-func containsAll(have, want []string) bool {
-	for _, w := range want {
-		found := false
-		for _, h := range have {
-			if strings.EqualFold(h, w) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
+	return username, repo, nil
 }
