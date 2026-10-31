@@ -1,5 +1,12 @@
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 import { run } from './app.js';
+
+// Node gives each address only 250ms to connect before trying the next one
+// (happy eyeballs). On slow or distant links every attempt can lose that
+// race, so fetch fails with ETIMEDOUT while curl gets through. Go and curl
+// wait much longer; 2s per address keeps a dead IPv6 route cheap.
+net.setDefaultAutoSelectFamilyAttemptTimeout(2000);
 
 /** Open a URL with the platform's default handler. */
 function openUrl(url: string): Promise<void> {
