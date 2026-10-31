@@ -93,6 +93,7 @@ export async function cli(
     env?: NodeJS.ProcessEnv;
     stdin?: string;
     tty?: boolean;
+    retryDelaysMs?: readonly number[];
     openUrl?: RunOptions['openUrl'];
   }
 ): Promise<Result> {
@@ -108,6 +109,7 @@ export async function cli(
     stdin,
     env: { GHCARD_BASE_URL: BASE, ...options.env },
     fetch: options.fetch,
+    retryDelaysMs: options.retryDelaysMs ?? [],
     openUrl: options.openUrl,
   });
   let parsed: unknown;

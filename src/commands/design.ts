@@ -61,7 +61,7 @@ Examples:
     .description('Print the design of one of your cards')
     .option('-o, --output <file>', 'write to this file instead of stdout')
     .action(async (id: string, opts: { output?: string }) => {
-      const doc = await (await app.client()).cardDesign(id);
+      const doc = await (await app.authedClient()).cardDesign(id);
       await writeDesign(app, doc, opts.output);
     });
 }
@@ -120,7 +120,7 @@ export function registerOpen(program: Command, app: App): void {
     .description('Open one of your cards in the web editor')
     .option('--print', 'print the editor link without opening a browser')
     .action(async (id: string, opts: { print?: boolean }) => {
-      const card = await (await app.client()).getCard(id);
+      const card = await (await app.authedClient()).getCard(id);
       if (!opts.print && !app.printer.json && app.options.openUrl) {
         try {
           await app.options.openUrl(card.editUrl);

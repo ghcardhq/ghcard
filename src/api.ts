@@ -195,6 +195,29 @@ export interface ClientOptions {
   userAgent?: string;
   /** Injectable for tests. */
   fetch?: typeof fetch;
+  /** Waits before each retry of a failed connection; tests pass []. */
+  retryDelaysMs?: readonly number[];
+}
+
+/** Two retries, 1s then 3s apart: enough for a flaky link, short enough to wait for. */
+const CONNECT_RETRY_DELAYS_MS = [1000, 3000];
+
+/** Codes Node gives when a connection was never established. */
+const CONNECT_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+/** True when fetch failed before any request reached the server. */
+function isConnectFailure(cause: unknown): boolean {
+  if (!(cause instanceof Error) || cause.name === 'TimeoutError' || cause.name === 'AbortError') return false;
+  const inner = (cause as { cause?: { code?: unknown } }).cause;
+  return typeof inner?.code === 'string' && CONNECT_ERROR_CODES.has(inner.code);
 }
 
 /** Fields of an error body kept as details. */
@@ -205,12 +228,32 @@ export class Client {
   readonly apiKey: string;
   private readonly userAgent: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly retryDelaysMs: readonly number[];
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = (options.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.apiKey = options.apiKey ?? '';
     this.userAgent = options.userAgent ?? '';
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.retryDelaysMs = options.retryDelaysMs ?? CONNECT_RETRY_DELAYS_MS;
+  }
+
+  /**
+   * Fetch, retrying only when the connection itself failed. Such a request
+   * never reached the server, so repeating it is safe for every endpoint,
+   * creating a card included. A timeout or a failure after the request was
+   * sent is not retried here: the server may still be working on it.
+   */
+  private async fetchWithRetry(target: string, init: RequestInit): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.fetchImpl(target, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      } catch (cause) {
+        const delay = this.retryDelaysMs[attempt];
+        if (delay === undefined || !isConnectFailure(cause)) throw cause;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   private async request<T>(
@@ -235,11 +278,10 @@ export class Client {
 
     let response: Response;
     try {
-      response = await this.fetchImpl(target, {
+      response = await this.fetchWithRetry(target, {
         method,
         headers,
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (cause) {
       throw new ApiError({
@@ -357,9 +399,8 @@ export class Client {
   async download(imageUrl: string): Promise<Uint8Array> {
     let response: Response;
     try {
-      response = await this.fetchImpl(imageUrl, {
+      response = await this.fetchWithRetry(imageUrl, {
         headers: this.userAgent ? { 'User-Agent': this.userAgent } : {},
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (cause) {
       throw new ApiError({ code: 'NETWORK_ERROR', message: errorText(cause), retryable: true });

@@ -137,9 +137,58 @@ describe('ghcard create', () => {
   it('prints human output on a terminal', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
     const r = await cli(['create', 'octocat'], { fetch: api.fetch, env, tty: true });
-    expect(r.stdout).toContain(`Created card ${CARD.id} for octocat (template social)`);
-    expect(r.stdout).toContain('Quota: 99 of 100 cards left today');
+    expect(r.stdout).toContain('Created card for octocat (social)');
+    expect(r.stdout).toContain(`  ${CARD.embed.markdown}\n`);
+    expect(r.stdout).toContain(`  Edit  ${CARD.editUrl}`);
+    expect(r.stdout).toContain('99 of 100 cards left today. --verbose shows the image links.');
+    expect(r.stdout).not.toContain(CARD.urls.png);
     expect(r.stderr).toContain('Generating card for octocat');
+  });
+
+  it('adds image links and the id with --verbose', async () => {
+    const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
+    const r = await cli(['create', 'octocat', '--verbose'], { fetch: api.fetch, env, tty: true });
+    expect(r.stdout).toContain(`  SVG   ${CARD.urls.svg}`);
+    expect(r.stdout).toContain(`  PNG   ${CARD.urls.png}`);
+    expect(r.stdout).toContain(`  ID    ${CARD.id}`);
+    expect(r.stdout).not.toContain('--verbose shows');
+  });
+
+  it('names the README instead of repeating the snippet', async () => {
+    const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
+    const readme = join(dir, 'README.md');
+    await writeFile(readme, '# Me\n');
+    const r = await cli(['create', 'octocat', '--readme', readme], { fetch: api.fetch, env, tty: true });
+    expect(r.stdout).toContain(`  Added to ${readme}`);
+    expect(r.stdout).not.toContain(CARD.embed.markdown);
+    const again = await cli(['create', 'octocat', '--readme', readme], { fetch: api.fetch, env, tty: true });
+    expect(again.stdout).toContain(`  Already up to date: ${readme}`);
+  });
+
+  it('offers to log in on a terminal, then creates the card', async () => {
+    const api = fakeApi({
+      'GET /usage': () => ok({ username: 'octocat', tier: 'free', tierExpiresAt: '', cards: {}, ai: {} }),
+      'POST /cards': () => ok(CREATED),
+    });
+    const noKey = { GHCARD_CONFIG: env.GHCARD_CONFIG };
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env: noKey, tty: true, stdin: `${KEY}\n` });
+    expect(r.code).toBe(0);
+    expect(r.stderr).toContain('This command needs a GitHubCard API key');
+    expect(r.stderr).toContain('Logged in as octocat (free)');
+    expect(r.stdout).toContain('Created card for octocat');
+    expect(api.requests.find(q => q.path === '/cards')!.headers.get('Authorization')).toBe(`Bearer ${KEY}`);
+    expect(JSON.parse(await readFile(env.GHCARD_CONFIG!, 'utf8'))).toEqual({ apiKey: KEY });
+  });
+
+  it('keeps NO_API_KEY for --json on a terminal', async () => {
+    const api = fakeApi({});
+    const r = await cli(['--json', 'create', 'octocat'], {
+      fetch: api.fetch,
+      env: { GHCARD_CONFIG: env.GHCARD_CONFIG },
+      tty: true,
+    });
+    expect(r.code).toBe(3);
+    expect(r.json.error.code).toBe('NO_API_KEY');
   });
 
   it('honours --json on a terminal, also for flag errors', async () => {
@@ -287,6 +336,25 @@ describe('other commands', () => {
     const r = await cli(['auth'], { fetch: fakeApi({}).fetch, env, tty: true });
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/^ {2}login +Save an API key/m);
+  });
+
+  it('completes commands, subcommands and flags', async () => {
+    const complete = async (...words: string[]) =>
+      (await cli(['__complete', ...words], { fetch: fakeApi({}).fetch, env })).stdout.trim().split('\n');
+    expect(await complete('cr')).toEqual(['create']);
+    expect(await complete('auth', '')).toEqual(['login', 'logout', 'status']);
+    expect(await complete('create', 'octocat', '--re')).toEqual(['--readme']);
+    expect(await complete('')).not.toContain('__complete');
+  });
+
+  it('prints a completion script per shell and rejects others', async () => {
+    const api = fakeApi({});
+    for (const shell of ['bash', 'zsh', 'fish']) {
+      const r = await cli(['completion', shell], { fetch: api.fetch, env });
+      expect(r.code).toBe(0);
+      expect(r.stdout).toContain('ghcard __complete');
+    }
+    expect((await cli(['completion', 'tcsh'], { fetch: api.fetch, env })).code).toBe(2);
   });
 
   it('--version prints the version', async () => {

@@ -62,7 +62,7 @@ export function registerCatalogue(program: Command, app: App): void {
     .helpGroup('Account and agents:')
     .description("Show your plan and today's card quota")
     .action(async () => {
-      const account = await (await app.client()).usage();
+      const account = await (await app.authedClient()).usage();
       app.printer.success(account, w => {
         w.write(`Account  ${account.username} (${account.tier})\n`);
         w.write(`Cards    ${account.cards.used} of ${account.cards.limit} used today, resets ${account.cards.resetAt}\n`);

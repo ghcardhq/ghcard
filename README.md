@@ -39,7 +39,9 @@ The key is saved to `<user config dir>/ghcard/config.json` with mode 0600.
 key in CI. `ghcard auth logout` removes the saved key; revoke keys on the
 dashboard.
 
-Listing templates, palettes and components needs no key.
+Listing templates, palettes and components needs no key. On a terminal, a
+command that needs a key and finds none offers to log in on the spot, then
+carries on.
 
 ## Commands
 
@@ -57,11 +59,22 @@ Listing templates, palettes and components needs no key.
 | `ghcard usage` | Your plan and today's card quota |
 | `ghcard auth login\|status\|logout` | Manage the stored key |
 | `ghcard mcp` | Run as an MCP server for AI agents |
+| `ghcard completion bash\|zsh\|fish` | Print a shell completion script |
 
 `ghcard create` flags: `--template/-t`, `--palette/-p`, `--design/-d FILE|-`,
 `--format/-f svg|png`, `--embed/-e markdown|html|url`, `--output/-o FILE`,
 `--readme FILE`, `--snapshot`, `--dry-run` (check without creating or using
-quota), `--no-watermark` (Pro).
+quota), `--no-watermark` (Pro), `--verbose` (also print the image links).
+
+On a terminal, `create` prints the card's Markdown snippet and its editor
+link; `--verbose` adds the SVG, PNG and HTML links. Piped output and `--json`
+always carry every link.
+
+Shell completion:
+
+```bash
+echo 'eval "$(ghcard completion zsh)"' >> ~/.zshrc    # or bash: ~/.bashrc
+```
 
 ### Custom layouts
 

@@ -4,6 +4,32 @@ import { configPath, loadConfig, maskKey, saveConfig } from '../config.js';
 import { UsageError } from '../output.js';
 import type { App } from '../app.js';
 
+/**
+ * Read a key from stdin (prompting on a terminal), check it against the API,
+ * and save it. Shared by `auth login` and the first-run prompt.
+ */
+export async function login(
+  app: App,
+  options: { prompt: boolean }
+): Promise<{ username: string; tier: string; configPath: string }> {
+  if (options.prompt) app.options.stderr.write('Paste your API key (from https://githubcard.com/dashboard): ');
+  const line = await app.readLine();
+  if (line === null && !options.prompt) throw new UsageError('no key on stdin');
+  const key = (line ?? '').trim();
+  if (!key.startsWith('ghc_live_')) {
+    throw new UsageError('that does not look like a GitHubCard API key (it should start with ghc_live_)');
+  }
+
+  const r = await app.resolve();
+  const account = await app.clientFor(r.baseUrl, key).usage();
+
+  const file = await loadConfig(app.options.env);
+  file.apiKey = key;
+  if (app.flags.baseUrl) file.baseUrl = app.flags.baseUrl;
+  const configPath = await saveConfig(file, app.options.env);
+  return { username: account.username, tier: account.tier, configPath };
+}
+
 export function registerAuth(program: Command, app: App): void {
   const auth = program
     .command('auth')
@@ -23,27 +49,9 @@ history), and is checked against the API before it is saved.`
     .option('--with-token', 'read the key from stdin')
     .addHelpText('after', '\nExamples:\n  ghcard auth login\n  echo "$KEY" | ghcard auth login --with-token\n')
     .action(async (opts: { withToken?: boolean }) => {
-      if (!opts.withToken && app.options.stdin.isTTY) {
-        app.options.stderr.write('Paste your API key (from https://githubcard.com/dashboard): ');
-      }
-      const line = await app.readLine();
-      if (line === null && (opts.withToken || !app.options.stdin.isTTY)) {
-        throw new UsageError('no key on stdin');
-      }
-      const key = (line ?? '').trim();
-      if (!key.startsWith('ghc_live_')) {
-        throw new UsageError('that does not look like a GitHubCard API key (it should start with ghc_live_)');
-      }
-
-      const r = await app.resolve();
-      const account = await app.clientFor(r.baseUrl, key).usage();
-
-      const file = await loadConfig(app.options.env);
-      file.apiKey = key;
-      if (app.flags.baseUrl) file.baseUrl = app.flags.baseUrl;
-      const path = await saveConfig(file, app.options.env);
-      app.printer.success({ username: account.username, tier: account.tier, configPath: path }, w => {
-        w.write(`Logged in as ${account.username} (${account.tier}). Key saved to ${path}\n`);
+      const result = await login(app, { prompt: !opts.withToken && Boolean(app.options.stdin.isTTY) });
+      app.printer.success(result, w => {
+        w.write(`Logged in as ${result.username} (${result.tier}). Key saved to ${result.configPath}\n`);
       });
     });
 

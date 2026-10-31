@@ -8,11 +8,12 @@ import { type Argument, Command, CommanderError, Help } from 'commander';
 import { Client, DEFAULT_BASE_URL } from './api.js';
 import { resolveConfig, type Resolved } from './config.js';
 import { Exit, Printer, UsageError, type Writer } from './output.js';
-import { registerAuth } from './commands/auth.js';
+import { login, registerAuth } from './commands/auth.js';
 import { registerCreate, registerDelete, registerList } from './commands/card.js';
 import { registerCatalogue } from './commands/catalogue.js';
 import { registerDesign, registerOpen } from './commands/design.js';
 import { registerMcp } from './commands/mcp.js';
+import { registerCompletion } from './commands/completion.js';
 
 declare const __GHCARD_VERSION__: string;
 export const VERSION: string = typeof __GHCARD_VERSION__ === 'string' ? __GHCARD_VERSION__ : 'dev';
@@ -32,6 +33,8 @@ export interface RunOptions {
   stdin: InputStream;
   env: NodeJS.ProcessEnv;
   fetch?: typeof fetch;
+  /** Waits before retrying a failed connection; tests pass []. */
+  retryDelaysMs?: readonly number[];
   /** Opens a URL in the browser; injectable for tests. */
   openUrl?: (url: string) => Promise<void>;
 }
@@ -58,8 +61,32 @@ export class App {
     return this.clientFor(r.baseUrl, r.apiKey);
   }
 
+  /**
+   * A client for commands that need a key. With no key on an interactive
+   * terminal (not --json), offer to log in now and then carry on, instead of
+   * failing with NO_API_KEY. Scripts, pipes and agents get the error as before.
+   */
+  async authedClient(): Promise<Client> {
+    const r = await this.resolve();
+    if (r.apiKey || this.printer.json || !this.options.stdin.isTTY || !this.options.stderr.isTTY) {
+      return this.clientFor(r.baseUrl, r.apiKey);
+    }
+    this.options.stderr.write(
+      'This command needs a GitHubCard API key. Create one (free) at https://githubcard.com/dashboard.\n'
+    );
+    const result = await login(this, { prompt: true });
+    this.options.stderr.write(`Logged in as ${result.username} (${result.tier}). Key saved to ${result.configPath}\n\n`);
+    return this.client();
+  }
+
   clientFor(baseUrl: string, apiKey: string): Client {
-    return new Client({ baseUrl, apiKey, userAgent: this.userAgent, fetch: this.options.fetch });
+    return new Client({
+      baseUrl,
+      apiKey,
+      userAgent: this.userAgent,
+      fetch: this.options.fetch,
+      retryDelaysMs: this.options.retryDelaysMs,
+    });
   }
 
   /** Read all of stdin, up to `limit` bytes. */
@@ -201,6 +228,7 @@ Run 'ghcard <command> --help' for details on a command.`
   registerCatalogue(program, app);
   registerAuth(program, app);
   registerMcp(program, app);
+  registerCompletion(program, app);
 
   // Subcommands inherit exitOverride and output routing.
   for (const command of allCommands(program)) {
@@ -213,7 +241,7 @@ Run 'ghcard <command> --help' for details on a command.`
   // `ghcard` or `ghcard auth` alone shows that command's help, like `--help`;
   // anything else that is not a subcommand is an unknown-command error.
   for (const command of [program, ...allCommands(program)]) {
-    if (command.commands.length === 0) continue;
+    if (command.commands.length === 0 || command.name() === '__complete') continue;
     command
       .usage('<command> [options]')
       .argument('[command...]')

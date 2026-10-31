@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ApiError, Client, NoApiKeyError } from '../src/api.js';
 import { BASE, CREATED, KEY, fakeApi, json, ok } from './helpers.js';
 
+/** What Node's fetch throws when it never connected. */
+function connectFailure(code: string): TypeError {
+  return new TypeError('fetch failed', { cause: Object.assign(new Error(`connect ${code}`), { code }) });
+}
+
 describe('Client', () => {
   it('posts a card with the key and omits an unset watermark', async () => {
     const api = fakeApi({
@@ -62,10 +67,50 @@ describe('Client', () => {
     const failing = (async () => {
       throw new TypeError('fetch failed', { cause: Object.assign(new AggregateError([], ''), { code: 'ETIMEDOUT' }) });
     }) as typeof fetch;
-    const error = (await new Client({ baseUrl: BASE, fetch: failing }).templates('').catch((e: unknown) => e)) as ApiError;
+    const error = (await new Client({ baseUrl: BASE, fetch: failing, retryDelaysMs: [] })
+      .templates('')
+      .catch((e: unknown) => e)) as ApiError;
     expect(error.code).toBe('NETWORK_ERROR');
     expect(error.retryable).toBe(true);
     expect(error.message).toContain('ETIMEDOUT');
+  });
+
+  it('retries a failed connection, then succeeds', async () => {
+    let calls = 0;
+    const api = fakeApi({ 'GET /palettes': () => ok({ palettes: [], proBackgrounds: [] }) });
+    const flaky = (async (input: string | URL | Request, init?: RequestInit) => {
+      calls += 1;
+      if (calls < 3) throw connectFailure('ETIMEDOUT');
+      return api.fetch(input, init);
+    }) as typeof fetch;
+    const result = await new Client({ baseUrl: BASE, fetch: flaky, retryDelaysMs: [0, 0] }).palettes();
+    expect(result.palettes).toEqual([]);
+    expect(calls).toBe(3);
+  });
+
+  it('gives up after its retries and reports NETWORK_ERROR', async () => {
+    let calls = 0;
+    const down = (async () => {
+      calls += 1;
+      throw connectFailure('ECONNREFUSED');
+    }) as typeof fetch;
+    const error = (await new Client({ baseUrl: BASE, fetch: down, retryDelaysMs: [0, 0] })
+      .palettes()
+      .catch((e: unknown) => e)) as ApiError;
+    expect(error.code).toBe('NETWORK_ERROR');
+    expect(calls).toBe(3);
+  });
+
+  it('does not repeat a request that may have reached the server', async () => {
+    let calls = 0;
+    const reset = (async () => {
+      calls += 1;
+      throw connectFailure('ECONNRESET');
+    }) as typeof fetch;
+    await new Client({ baseUrl: BASE, apiKey: KEY, fetch: reset, retryDelaysMs: [0, 0] })
+      .createCard({ username: 'octocat' })
+      .catch(() => undefined);
+    expect(calls).toBe(1);
   });
 
   it('returns an empty list rather than null', async () => {

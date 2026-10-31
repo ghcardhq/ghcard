@@ -1,6 +1,6 @@
 {
   "name": "@ghcardhq/ghcard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generate embeddable GitHub profile and repository cards from the terminal, CI, or an AI agent (MCP server included).",
   "keywords": [
     "github",

@@ -19,6 +19,7 @@ interface CardOptions {
   watermark: boolean;
   snapshot?: boolean;
   dryRun?: boolean;
+  verbose?: boolean;
 }
 
 export function registerCreate(program: Command, app: App): void {
@@ -28,46 +29,31 @@ export function registerCreate(program: Command, app: App): void {
     .summary('Create a card for a user or repo and print its links')
     .argument('<subject>', 'user or owner/repo (a GitHub URL also works)')
     .description(
-      `Create a card for a GitHub profile or repository, or reuse the identical one,
-and print its link.
+      `Create a card for a GitHub profile or repository and print its README snippet.
 
-The request is idempotent: the same subject, template, palette and watermark
-setting always return the same card and link, so it is safe to run in CI on
-every push. Each call counts once against the daily card quota.
-
-Links are live by default: they re-render with current GitHub data. Use
---snapshot for the immutable image captured when the card was created.
-
---format picks which link is printed and which image --output saves (svg by
-default). --readme embeds the card's Markdown, which uses the live SVG link
-(the frozen one with --snapshot). All flags combine; one call costs one
-quota unit.
-
-Without --template the subject's default layout is used. --design publishes a
-custom layout instead (see 'ghcard design'); Pro fonts and backgrounds in it
-need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`
+Running it again with the same options returns the same card and link, so it is
+safe in CI. Each run counts once against the daily quota; the flags combine in
+one run. Links show live GitHub data; --snapshot gives a frozen image instead.`
     )
-    .option('-t, --template <id>', "layout id (see `ghcard templates`; default: the subject's default layout)")
-    .option('-p, --palette <id>', "background palette id (see `ghcard palettes`; default: the template's own)")
-    .option('-f, --format <format>', 'link format to print and download: svg or png', 'svg')
-    .option('-e, --embed <kind>', 'print only a snippet: markdown, html, or url')
-    .option('-o, --output <file>', 'also download the image to this file')
-    .option('--readme <file>', "insert or update the card's Markdown in this file")
-    .option('-d, --design <file>', 'publish this design file ("-" for stdin) instead of a template')
+    .option('-t, --template <id>', 'layout id from `ghcard templates` (default: the subject\'s own)')
+    .option('-p, --palette <id>', 'background id from `ghcard palettes`')
+    .option('-d, --design <file>', 'use a design file from `ghcard design` ("-" for stdin)')
+    .option('--readme <file>', 'insert or update the card in this Markdown file')
+    .option('-o, --output <file>', 'also save the image to this file')
+    .option('-f, --format <format>', 'image format for the link and --output: svg or png', 'svg')
+    .option('-e, --embed <kind>', 'print only this: markdown, html, or url')
+    .option('--snapshot', 'link to a frozen image instead of the live one')
     .option('--no-watermark', 'remove the watermark (Pro)')
-    .option('--snapshot', 'use the frozen image links instead of live ones')
-    .option('--dry-run', 'check the request (ids, Pro features, design) without creating a card or using quota')
+    .option('--dry-run', 'check the request without creating a card or using quota')
+    .option('--verbose', 'also print the SVG, PNG and HTML links')
     .addHelpText(
       'after',
       `
 Examples:
-  ghcard create octocat
-  ghcard create octocat/hello-world --template repo-dark-terminal
-  ghcard create octocat --palette sage --embed markdown
-  ghcard create octocat --format png --output card.png
-  ghcard create octocat --readme README.md
+  ghcard create octocat --readme README.md          # add it to a README
+  ghcard create octocat/hello-world -t repo-og-compact
+  ghcard create octocat -f png -o card.png          # save a PNG
   ghcard create octocat --design design.json --dry-run
-  ghcard create octocat --design design.json
 `
     )
     .action(async (subjectArg: string, opts: CardOptions) => {
@@ -89,7 +75,7 @@ Examples:
       }
       if (!opts.watermark) req.watermark = false;
 
-      const client = await app.client();
+      const client = await app.authedClient();
       if (opts.dryRun) {
         const checked = await client.validateCard(req);
         app.printer.success(checked, w => {
@@ -140,17 +126,33 @@ Examples:
         if (opts.embed === 'markdown') return void w.write(`${card.embed.markdown}\n`);
         if (opts.embed === 'html') return void w.write(`${card.embed.html}\n`);
         if (opts.embed === 'url') return void w.write(`${card.url}\n`);
-        w.write(`${card.created ? 'Created' : 'Reused'} card ${card.id} for ${card.subject} (template ${card.template})\n`);
-        w.write(`  SVG       ${card.urls.svg}\n`);
-        w.write(`  PNG       ${card.urls.png}\n`);
-        w.write(`  Markdown  ${card.embed.markdown}\n`);
-        w.write(`  Edit      ${card.editUrl}\n`);
-        if (result.output) w.write(`  Saved     ${resolvePath(result.output)}\n`);
-        if (result.readmePath) w.write(`  README    ${result.readmePath} (${result.readmeEdit})\n`);
-        for (const warning of warnings) w.write(`  Warning   ${warning}\n`);
-        w.write(`Quota: ${card.usage.remaining} of ${card.usage.limit} cards left today\n`);
+        w.write(`${card.created ? 'Created' : 'Reused'} card for ${card.subject} (${card.template})\n\n`);
+        if (result.readmePath) {
+          w.write(`  ${readmeVerb(result.readmeEdit)} ${result.readmePath}\n`);
+        } else {
+          w.write(`  ${card.embed.markdown}\n`);
+        }
+        w.write('\n');
+        if (opts.verbose) {
+          w.write(`  SVG   ${card.urls.svg}\n`);
+          w.write(`  PNG   ${card.urls.png}\n`);
+          w.write(`  HTML  ${card.embed.html}\n`);
+          w.write(`  ID    ${card.id}\n`);
+        }
+        w.write(`  Edit  ${card.editUrl}\n`);
+        if (result.output) w.write(`  Saved ${resolvePath(result.output)}\n`);
+        for (const warning of warnings) w.write(`  Warning: ${warning}\n`);
+        w.write(`\n${card.usage.remaining} of ${card.usage.limit} cards left today.`);
+        w.write(opts.verbose ? '\n' : ' --verbose shows the image links.\n');
       });
     });
+}
+
+function readmeVerb(edit: string | undefined): string {
+  if (edit === 'created') return 'Created';
+  if (edit === 'unchanged') return 'Already up to date:';
+  if (edit === 'updated') return 'Updated';
+  return 'Added to';
 }
 
 /** Swap every link for the immutable publication captured now. */
@@ -177,7 +179,7 @@ export function registerList(program: Command, app: App): void {
     .option('--all', 'fetch every page')
     .action(async (opts: { limit: number; cursor?: string; all?: boolean }) => {
       if (!Number.isInteger(opts.limit)) throw new UsageError('--limit must be a number');
-      const client = await app.client();
+      const client = await app.authedClient();
       const all: Card[] = [];
       let cursor = opts.cursor ?? '';
       let next: string | null = null;
@@ -218,7 +220,7 @@ export function registerDelete(program: Command, app: App): void {
       } else if (!opts.yes) {
         throw new UsageError('deleting without a terminal requires --yes');
       }
-      const client = await app.client();
+      const client = await app.authedClient();
       for (const id of ids) await client.deleteCard(id);
       app.printer.success({ deleted: ids }, w => w.write(`Deleted ${ids.join(', ')}\n`));
     });
