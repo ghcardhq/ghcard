@@ -1,0 +1,55 @@
+{
+  "name": "ghcard",
+  "version": "0.1.0",
+  "description": "Generate embeddable GitHub profile and repository cards from the terminal, CI, or an AI agent (MCP server included).",
+  "keywords": [
+    "github",
+    "github-profile",
+    "readme",
+    "card",
+    "cli",
+    "mcp",
+    "mcp-server",
+    "githubcard"
+  ],
+  "homepage": "https://githubcard.com",
+  "bugs": "https://github.com/ghcardhq/ghcard/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghcardhq/ghcard.git"
+  },
+  "license": "MIT",
+  "author": "GitHubCard (https://githubcard.com)",
+  "mcpName": "com.githubcard/mcp",
+  "type": "module",
+  "bin": {
+    "ghcard": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "commander": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

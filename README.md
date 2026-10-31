@@ -1,42 +1,26 @@
 # ghcard
 
-Generate GitHub profile and repository cards from the command line, from CI,
-or from an AI agent over MCP.
+Generate [GitHubCard](https://githubcard.com) profile and repository cards from
+the command line, from CI, or from an AI agent over MCP.
 
 ```bash
-ghcard card octocat                     # profile card; prints SVG/PNG links
-ghcard card octocat/hello-world         # repository card
-ghcard card octocat --embed markdown    # just the README snippet
-ghcard card octocat --readme README.md  # insert or update it in a README
-ghcard card octocat -f png -o card.png  # download the image
+npx -y ghcard card octocat                     # profile card; prints SVG/PNG links
+npx -y ghcard card octocat/hello-world         # repository card
+npx -y ghcard card octocat --embed markdown    # just the README snippet
+npx -y ghcard card octocat --readme README.md  # insert or update it in a README
+npx -y ghcard card octocat -f png -o card.png  # download the image
 ```
 
 ## Install
 
-Download the archive for your platform from
-[Releases](https://github.com/ghcardhq/ghcard/releases/latest), unpack it,
-and put `ghcard` on your `PATH`. Archives are named
-`ghcard_<os>_<arch>` (`darwin`/`linux`/`windows`, `amd64`/`arm64`), so the
-latest one has a stable link. For example, on macOS with Apple silicon:
+Needs Node.js 20 or later.
 
 ```bash
-curl -fsSL https://github.com/ghcardhq/ghcard/releases/latest/download/ghcard_darwin_arm64.tar.gz | tar -xz ghcard
+npm install -g ghcard
 ```
 
-Or, with Go 1.25+:
-
-```bash
-go install github.com/ghcardhq/ghcard/cmd/ghcard@latest
-```
-
-## Releasing
-
-Push a `v*` tag; the release workflow builds macOS, Linux and Windows
-binaries with GoReleaser and attaches them to a GitHub release.
-
-```bash
-git tag v0.1.0 && git push origin v0.1.0
-```
+Or run it without installing: `npx -y ghcard <command>`. The examples below
+assume a global install.
 
 ## Authenticate
 
@@ -88,8 +72,7 @@ ghcard card octocat --design design.json
 
 The design's own subject is ignored; the `card` argument decides whose data
 it shows. Layer types come from `ghcard components`. On Free, Pro fonts and
-backgrounds fail with `PRO_FEATURE`. See
-[Custom designs](../docs/public-api.md#custom-designs).
+backgrounds fail with `PRO_FEATURE`, and `error.details.features` lists them.
 
 ### Idempotent by design
 
@@ -129,17 +112,21 @@ otherwise.
 
 ## MCP server
 
-`ghcard mcp` serves the [Model Context Protocol](https://modelcontextprotocol.io)
-over stdio. Tools: `create_card` (template or custom `design`),
+The quickest way to use GitHubCard from an AI agent is the hosted server at
+`https://githubcard.com/mcp`; setup for each client is in
+[ghcardhq/githubcard-mcp](https://github.com/ghcardhq/githubcard-mcp).
+
+`ghcard mcp` runs the same tools locally over stdio. It adds `update_readme`
+when started with `--allow-file-writes`, so the agent can edit a README on
+your disk. Tools: `create_card` (template or custom `design`),
 `validate_card` (free dry run), `list_templates`, `list_palettes`,
-`list_components`, `get_template_design`,
-`get_card_design`, `list_cards`, `delete_card`, `get_usage`, and, only with
-`--allow-file-writes`, `update_readme`.
+`list_components`, `get_template_design`, `get_card_design`, `list_cards`,
+`delete_card`, `get_usage`.
 
 Claude Code:
 
 ```bash
-claude mcp add githubcard --env GHCARD_API_KEY=ghc_live_... -- ghcard mcp
+claude mcp add githubcard --env GHCARD_API_KEY=ghc_live_... -- npx -y ghcard mcp
 ```
 
 Claude Desktop, Cursor, and other clients (`mcpServers` config):
@@ -148,8 +135,8 @@ Claude Desktop, Cursor, and other clients (`mcpServers` config):
 {
   "mcpServers": {
     "githubcard": {
-      "command": "ghcard",
-      "args": ["mcp"],
+      "command": "npx",
+      "args": ["-y", "ghcard", "mcp"],
       "env": { "GHCARD_API_KEY": "ghc_live_..." }
     }
   }
@@ -161,17 +148,26 @@ flag and a `hint` the model can act on.
 
 ## Claude Code skill
 
-`skill/githubcard/SKILL.md` teaches Claude Code (and other agents that read
-skills) when and how to use `ghcard`: the main flows, README editing, and
-what to do for each error code. Install it for your user:
+The `githubcard` skill teaches Claude Code when and how to use `ghcard`. It
+lives in [ghcardhq/skills](https://github.com/ghcardhq/skills):
 
 ```bash
-mkdir -p ~/.claude/skills && cp -R skill/githubcard ~/.claude/skills/
+claude plugin marketplace add ghcardhq/skills
+claude plugin install githubcard@githubcard
 ```
 
 ## Development
 
 ```bash
-go test ./...
-GHCARD_BASE_URL=http://localhost:5173 go run ./cmd/ghcard templates
+npm install
+npm test
+npm run typecheck
+GHCARD_BASE_URL=http://localhost:5173 npm run dev -- templates
 ```
+
+Releases: bump `version` in `package.json`, then push a matching `v*` tag. The
+release workflow publishes to npm with provenance.
+
+## License
+
+MIT

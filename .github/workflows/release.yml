@@ -1,5 +1,5 @@
-# Pushing a tag like v0.1.0 builds ghcard for macOS, Linux and Windows and
-# attaches the archives and checksums to a GitHub release.
+# Pushing a tag like v0.1.0 publishes the package to npm with provenance.
+# The tag must match the version in package.json. Needs an NPM_TOKEN secret.
 name: release
 
 on:
@@ -7,21 +7,22 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+  id-token: write
 
 jobs:
-  goreleaser:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@v6
-        with:
-          version: "~> v2"
-          args: release --clean
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Check the tag matches package.json
+        run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - run: npm publish --provenance --access public
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
