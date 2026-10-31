@@ -21,7 +21,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/Cactusinhand/ghcard/internal/api"
+	"github.com/ghcardhq/ghcard/internal/api"
 )
 
 const (

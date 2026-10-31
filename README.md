@@ -14,19 +14,19 @@ ghcard card octocat -f png -o card.png  # download the image
 ## Install
 
 Download the archive for your platform from
-[Releases](https://github.com/Cactusinhand/ghcard/releases/latest), unpack it,
+[Releases](https://github.com/ghcardhq/ghcard/releases/latest), unpack it,
 and put `ghcard` on your `PATH`. Archives are named
 `ghcard_<os>_<arch>` (`darwin`/`linux`/`windows`, `amd64`/`arm64`), so the
 latest one has a stable link. For example, on macOS with Apple silicon:
 
 ```bash
-curl -fsSL https://github.com/Cactusinhand/ghcard/releases/latest/download/ghcard_darwin_arm64.tar.gz | tar -xz ghcard
+curl -fsSL https://github.com/ghcardhq/ghcard/releases/latest/download/ghcard_darwin_arm64.tar.gz | tar -xz ghcard
 ```
 
 Or, with Go 1.25+:
 
 ```bash
-go install github.com/Cactusinhand/ghcard/cmd/ghcard@latest
+go install github.com/ghcardhq/ghcard/cmd/ghcard@latest
 ```
 
 ## Releasing

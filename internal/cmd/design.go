@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/ghcard/internal/output"
+	"github.com/ghcardhq/ghcard/internal/output"
 )
 
 func newDesignCmd(a *app) *cobra.Command {

@@ -18,7 +18,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/Cactusinhand/ghcard/internal/cmd.Version={{.Version}}
+      - -s -w -X github.com/ghcardhq/ghcard/internal/cmd.Version={{.Version}}
 
 archives:
   - id: ghcard

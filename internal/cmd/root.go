@@ -11,10 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/ghcard/internal/api"
-	"github.com/Cactusinhand/ghcard/internal/config"
-	"github.com/Cactusinhand/ghcard/internal/output"
-	"github.com/Cactusinhand/ghcard/internal/subject"
+	"github.com/ghcardhq/ghcard/internal/api"
+	"github.com/ghcardhq/ghcard/internal/config"
+	"github.com/ghcardhq/ghcard/internal/output"
+	"github.com/ghcardhq/ghcard/internal/subject"
 )
 
 // Version is set at build time with -ldflags "-X .../cmd.Version=v1.2.3".

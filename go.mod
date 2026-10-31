@@ -1,4 +1,4 @@
-module github.com/Cactusinhand/ghcard
+module github.com/ghcardhq/ghcard
 
 go 1.25.0
 

@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Cactusinhand/ghcard/internal/output"
+	"github.com/ghcardhq/ghcard/internal/output"
 )
 
 // lastBody is the most recent POST /cards body fakeAPI received.

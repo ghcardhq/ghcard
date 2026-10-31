@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/ghcard/internal/api"
-	"github.com/Cactusinhand/ghcard/internal/config"
-	"github.com/Cactusinhand/ghcard/internal/output"
-	"github.com/Cactusinhand/ghcard/internal/subject"
+	"github.com/ghcardhq/ghcard/internal/api"
+	"github.com/ghcardhq/ghcard/internal/config"
+	"github.com/ghcardhq/ghcard/internal/output"
+	"github.com/ghcardhq/ghcard/internal/subject"
 )
 
 func newTemplatesCmd(a *app) *cobra.Command {

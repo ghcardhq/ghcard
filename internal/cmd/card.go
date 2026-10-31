@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Cactusinhand/ghcard/internal/api"
-	"github.com/Cactusinhand/ghcard/internal/output"
-	"github.com/Cactusinhand/ghcard/internal/readme"
+	"github.com/ghcardhq/ghcard/internal/api"
+	"github.com/ghcardhq/ghcard/internal/output"
+	"github.com/ghcardhq/ghcard/internal/readme"
 )
 
 type cardResult struct {

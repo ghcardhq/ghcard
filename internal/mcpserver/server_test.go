@@ -12,7 +12,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/Cactusinhand/ghcard/internal/api"
+	"github.com/ghcardhq/ghcard/internal/api"
 )
 
 func connect(t *testing.T, handler http.HandlerFunc, allowWrites bool, key string) *mcp.ClientSession {
