@@ -29,4 +29,9 @@ jobs:
       - run: npm ci
       - name: Check the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - run: npm publish --access public
+      # Build first: npm reads `bin` before prepublishOnly runs, and drops it
+      # from the published manifest when dist/cli.js does not exist yet.
+      - run: npm run build
+      - run: npm --version
+      # Verbose so a failed OIDC exchange says why; npm redacts tokens.
+      - run: npm publish --access public --loglevel verbose
