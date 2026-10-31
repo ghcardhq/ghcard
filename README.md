@@ -4,7 +4,7 @@ Generate [GitHubCard](https://githubcard.com) profile and repository cards from
 the command line, from CI, or from an AI agent over MCP.
 
 ```bash
-npx -y @ghcardhq/ghcard create octocat                     # profile card; prints SVG/PNG links
+npx -y @ghcardhq/ghcard create octocat                     # profile card; prints its README snippet
 npx -y @ghcardhq/ghcard create octocat/hello-world         # repository card
 npx -y @ghcardhq/ghcard create octocat --embed markdown    # just the README snippet
 npx -y @ghcardhq/ghcard create octocat --readme README.md  # insert or update it in a README
