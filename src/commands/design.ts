@@ -7,19 +7,21 @@ import { parseSubjectArg } from './shared.js';
 export function registerDesign(program: Command, app: App): void {
   const design = program
     .command('design')
+    .helpGroup('Cards:')
+    .summary('Start or export a design document (layout JSON)')
     .description(
       `Work with card design documents (layout JSON).
 
 A design document is the JSON the web editor saves: the artboard (size,
 background, fonts, colours) and its layers (widgets with position, size and
 settings). Start from a template or an existing card, edit the JSON, then
-publish it with 'ghcard card <subject> --design design.json'.
+publish it with 'ghcard create <subject> --design design.json'.
 
 Use a design when a template plus --palette is not enough: any hex background,
 other fonts or colours, a different size, or adding/removing/moving widgets.
 
 Editing rules:
-  - The subject in a design file is ignored: the card command's argument
+  - The subject in a design file is ignored: the create command's argument
     decides whose data the card shows.
   - Layers are absolutely positioned (x, y, width, height). Removing one leaves
     its space empty; move or resize the others to fill it.
@@ -36,7 +38,7 @@ Examples:
   ghcard design init social -o design.json
   ghcard design init repo-og-compact --subject octocat/hello-world -o design.json
   ghcard design get <card-id> -o design.json
-  ghcard card octocat --design design.json
+  ghcard create octocat --design design.json
 `
     );
 
@@ -55,7 +57,7 @@ Examples:
 
   design
     .command('get')
-    .argument('<card-id>', 'card id from `ghcard cards list`')
+    .argument('<card-id>', 'card id from `ghcard list`')
     .description('Print the design of one of your cards')
     .option('-o, --output <file>', 'write to this file instead of stdout')
     .action(async (id: string, opts: { output?: string }) => {
@@ -86,7 +88,7 @@ async function writeDesign(app: App, doc: Record<string, unknown>, path: string 
     throw new Error(`write ${path}: ${(error as Error).message}`);
   }
   app.printer.success({ output: path }, w => {
-    w.write(`Wrote ${path}\nPublish it with: ghcard card <user | owner/repo> --design ${path}\n`);
+    w.write(`Wrote ${path}\nPublish it with: ghcard create <user | owner/repo> --design ${path}\n`);
   });
 }
 
@@ -113,7 +115,8 @@ export async function readDesign(app: App, path: string): Promise<Record<string,
 export function registerOpen(program: Command, app: App): void {
   program
     .command('open')
-    .argument('<card-id>', 'card id from `ghcard cards list`')
+    .helpGroup('Cards:')
+    .argument('<card-id>', 'card id from `ghcard list`')
     .description('Open one of your cards in the web editor')
     .option('--print', 'print the editor link without opening a browser')
     .action(async (id: string, opts: { print?: boolean }) => {

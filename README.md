@@ -4,11 +4,11 @@ Generate [GitHubCard](https://githubcard.com) profile and repository cards from
 the command line, from CI, or from an AI agent over MCP.
 
 ```bash
-npx -y ghcard card octocat                     # profile card; prints SVG/PNG links
-npx -y ghcard card octocat/hello-world         # repository card
-npx -y ghcard card octocat --embed markdown    # just the README snippet
-npx -y ghcard card octocat --readme README.md  # insert or update it in a README
-npx -y ghcard card octocat -f png -o card.png  # download the image
+npx -y ghcard create octocat                     # profile card; prints SVG/PNG links
+npx -y ghcard create octocat/hello-world         # repository card
+npx -y ghcard create octocat --embed markdown    # just the README snippet
+npx -y ghcard create octocat --readme README.md  # insert or update it in a README
+npx -y ghcard create octocat -f png -o card.png  # download the image
 ```
 
 ## Install
@@ -44,9 +44,9 @@ Listing templates, palettes and components needs no key.
 
 | Command | What it does |
 | --- | --- |
-| `ghcard card <user\|owner/repo>` | Create a card, or reuse the identical one, and print its links |
-| `ghcard cards list [--all]` | List the cards your account generated |
-| `ghcard cards delete <id>... [--yes]` | Delete cards; their links stop working |
+| `ghcard create <user\|owner/repo>` | Create a card, or reuse the identical one, and print its links |
+| `ghcard list [--all]` | List the cards your account generated |
+| `ghcard delete <id>... [--yes]` | Delete cards; their links stop working |
 | `ghcard design init <template> [-o FILE]` | Write a template's layout as an editable design (no key, no quota) |
 | `ghcard design get <card-id> [-o FILE]` | Export one of your cards' design |
 | `ghcard open <card-id> [--print]` | Open a card in the web editor |
@@ -57,7 +57,7 @@ Listing templates, palettes and components needs no key.
 | `ghcard auth login\|status\|logout` | Manage the stored key |
 | `ghcard mcp` | Run as an MCP server for AI agents |
 
-`ghcard card` flags: `--template/-t`, `--palette/-p`, `--design/-d FILE|-`,
+`ghcard create` flags: `--template/-t`, `--palette/-p`, `--design/-d FILE|-`,
 `--format/-f svg|png`, `--embed/-e markdown|html|url`, `--output/-o FILE`,
 `--readme FILE`, `--snapshot`, `--dry-run` (check without creating or using
 quota), `--no-watermark` (Pro).
@@ -67,10 +67,10 @@ quota), `--no-watermark` (Pro).
 ```bash
 ghcard design init social -o design.json      # or: ghcard design get <card-id> -o design.json
 $EDITOR design.json                           # artboard size/colours/fonts, layers[]
-ghcard card octocat --design design.json
+ghcard create octocat --design design.json
 ```
 
-The design's own subject is ignored; the `card` argument decides whose data
+The design's own subject is ignored; the `create` argument decides whose data
 it shows. Layer types come from `ghcard components`. On Free, Pro fonts and
 backgrounds fail with `PRO_FEATURE`, and `error.details.features` lists them.
 
@@ -78,11 +78,11 @@ backgrounds fail with `PRO_FEATURE`, and `error.details.features` lists them.
 
 The same subject, template, palette and watermark setting always return the
 same card and link (`"created": false` on repeats). Running
-`ghcard card me --readme README.md` on every CI push keeps one card and one
+`ghcard create me --readme README.md` on every CI push keeps one card and one
 README block. Card images show live GitHub data, so there is no need to
 regenerate a card to refresh it.
 
-Every `ghcard card` call counts once against the daily quota (Free 100,
+Every `ghcard create` call counts once against the daily quota (Free 100,
 Pro 5000, reset 00:00 UTC). Failed calls are not counted.
 
 ## Scripting and agents

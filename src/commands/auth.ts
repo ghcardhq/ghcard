@@ -5,10 +5,14 @@ import { UsageError } from '../output.js';
 import type { App } from '../app.js';
 
 export function registerAuth(program: Command, app: App): void {
-  const auth = program.command('auth').description('Store, check, or remove your API key');
+  const auth = program
+    .command('auth')
+    .helpGroup('Account and agents:')
+    .description('Log in with an API key, check it, or log out');
 
   auth
     .command('login')
+    .summary('Save an API key so later commands can use it')
     .description(
       `Save an API key so later commands can use it.
 
@@ -69,6 +73,7 @@ history), and is checked against the API before it is saved.`
 
   auth
     .command('logout')
+    .summary('Remove the saved key (does not revoke it)')
     .description(
       'Remove the saved key. This does not revoke it; revoke keys at https://githubcard.com/dashboard.'
     )

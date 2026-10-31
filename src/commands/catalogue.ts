@@ -10,6 +10,7 @@ function collect(value: string, previous: string[]): string[] {
 export function registerCatalogue(program: Command, app: App): void {
   program
     .command('templates')
+    .helpGroup('Catalogue (no key needed):')
     .description('List card layouts (ids for --template)')
     .option('-s, --scope <scope>', 'only templates for profile or repo cards')
     .option('--free', 'only templates available on the Free plan')
@@ -33,6 +34,7 @@ export function registerCatalogue(program: Command, app: App): void {
 
   program
     .command('palettes')
+    .helpGroup('Catalogue (no key needed):')
     .description('List background palettes (ids for --palette)')
     .action(async () => {
       const palettes = await (await app.client()).palettes();
@@ -46,6 +48,7 @@ export function registerCatalogue(program: Command, app: App): void {
 
   program
     .command('components')
+    .helpGroup('Catalogue (no key needed):')
     .description('List the widget types a card can contain')
     .action(async () => {
       const components = await (await app.client()).components();
@@ -56,6 +59,7 @@ export function registerCatalogue(program: Command, app: App): void {
 
   program
     .command('usage')
+    .helpGroup('Account and agents:')
     .description("Show your plan and today's card quota")
     .action(async () => {
       const account = await (await app.client()).usage();

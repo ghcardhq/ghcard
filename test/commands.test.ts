@@ -13,10 +13,10 @@ beforeEach(async () => {
   env = { GHCARD_CONFIG: join(dir, 'config.json'), GHCARD_API_KEY: KEY };
 });
 
-describe('ghcard card', () => {
+describe('ghcard create', () => {
   it('prints one JSON document when piped', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    const r = await cli(['card', 'octocat'], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env });
     expect(r.code).toBe(0);
     expect(r.json.ok).toBe(true);
     expect(r.json.data.id).toBe(CARD.id);
@@ -25,7 +25,7 @@ describe('ghcard card', () => {
 
   it('sends a repo subject as type repo', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    await cli(['card', 'https://github.com/octocat/hello-world.git'], { fetch: api.fetch, env });
+    await cli(['create', 'https://github.com/octocat/hello-world.git'], { fetch: api.fetch, env });
     expect(api.requests[0]!.body).toMatchObject({ type: 'repo', username: 'octocat', repo: 'hello-world' });
   });
 
@@ -37,7 +37,7 @@ describe('ghcard card', () => {
     const out = join(dir, 'card.svg');
     const readme = join(dir, 'README.md');
     await writeFile(readme, '# Me\n');
-    const r = await cli(['card', 'octocat', '-o', out, '--readme', readme], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat', '-o', out, '--readme', readme], { fetch: api.fetch, env });
 
     expect(r.code).toBe(0);
     expect(r.json.data.readmeEdit).toBe('inserted');
@@ -52,7 +52,7 @@ describe('ghcard card', () => {
       [CARD.urls.png]: () => new Response('nope', { status: 502 }),
     });
     const readme = join(dir, 'README.md');
-    const r = await cli(['card', 'octocat', '-f', 'png', '-o', join(dir, 'c.png'), '--readme', readme], {
+    const r = await cli(['create', 'octocat', '-f', 'png', '-o', join(dir, 'c.png'), '--readme', readme], {
       fetch: api.fetch,
       env,
     });
@@ -63,15 +63,15 @@ describe('ghcard card', () => {
 
   it('uses snapshot links with --snapshot', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    const r = await cli(['card', 'octocat', '--snapshot'], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat', '--snapshot'], { fetch: api.fetch, env });
     expect(r.json.data.url).toBe(CARD.snapshotUrls.svg);
     expect(r.json.data.embed.markdown).toContain(CARD.snapshotUrls.svg);
   });
 
   it('sends watermark:false only with --no-watermark', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    await cli(['card', 'octocat'], { fetch: api.fetch, env });
-    await cli(['card', 'octocat', '--no-watermark'], { fetch: api.fetch, env });
+    await cli(['create', 'octocat'], { fetch: api.fetch, env });
+    await cli(['create', 'octocat', '--no-watermark'], { fetch: api.fetch, env });
     expect(api.requests[0]!.body).not.toHaveProperty('watermark');
     expect(api.requests[1]!.body).toMatchObject({ watermark: false });
   });
@@ -81,17 +81,18 @@ describe('ghcard card', () => {
       'POST /cards/validate': () =>
         ok({ valid: true, warnings: [], template: 'social', palette: null, watermark: true, artboard: { width: 1200, height: 630 }, layers: 5 }),
     });
-    const r = await cli(['card', 'octocat', '--dry-run'], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat', '--dry-run'], { fetch: api.fetch, env });
     expect(r.json.data.valid).toBe(true);
     expect(api.requests.map(q => q.path)).toEqual(['/cards/validate']);
   });
 
   it.each([
-    [['card', 'a/b/c'], 2],
-    [['card', 'octocat', '--format', 'gif'], 2],
-    [['card', 'octocat', '--embed', 'xml'], 2],
+    [['create', 'a/b/c'], 2],
+    [['create', 'octocat', '--format', 'gif'], 2],
+    [['create', 'octocat', '--embed', 'xml'], 2],
     [['nope'], 2],
-    [['card'], 2],
+    [['create'], 2],
+    [['card', 'octocat'], 2],
   ])('%j exits %i without calling the API', async (argv, code) => {
     const api = fakeApi({});
     const r = await cli(argv, { fetch: api.fetch, env });
@@ -102,7 +103,7 @@ describe('ghcard card', () => {
 
   it('exits 3 without a key', async () => {
     const api = fakeApi({});
-    const r = await cli(['card', 'octocat'], { fetch: api.fetch, env: { GHCARD_CONFIG: env.GHCARD_CONFIG } });
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env: { GHCARD_CONFIG: env.GHCARD_CONFIG } });
     expect(r.code).toBe(3);
     expect(r.json.error.code).toBe('NO_API_KEY');
   });
@@ -116,7 +117,7 @@ describe('ghcard card', () => {
     [{ code: 'CARD_NOT_FOUND', message: 'x' }, 404, 4, ''],
   ])('maps %j to exit %i', async (body, status, code, hint) => {
     const api = fakeApi({ 'POST /cards': () => json(body, { status }) });
-    const r = await cli(['card', 'octocat'], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env });
     expect(r.code).toBe(code);
     if (hint) expect(r.json.error.hint).toContain(hint);
     if ('features' in body) expect(r.json.error.details.features).toHaveLength(1);
@@ -126,7 +127,7 @@ describe('ghcard card', () => {
     const api = fakeApi({
       'POST /cards': () => json({ code: 'QUOTA_EXCEEDED', message: 'q' }, { status: 429, headers: { 'Retry-After': '90' } }),
     });
-    const r = await cli(['card', 'octocat'], { fetch: api.fetch, env });
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env });
     expect(r.code).toBe(5);
     expect(r.json.error.retryable).toBe(true);
     expect(r.json.error.details.retryAfterSeconds).toBe(90);
@@ -135,7 +136,7 @@ describe('ghcard card', () => {
 
   it('prints human output on a terminal', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    const r = await cli(['card', 'octocat'], { fetch: api.fetch, env, tty: true });
+    const r = await cli(['create', 'octocat'], { fetch: api.fetch, env, tty: true });
     expect(r.stdout).toContain(`Created card ${CARD.id} for octocat (template social)`);
     expect(r.stdout).toContain('Quota: 99 of 100 cards left today');
     expect(r.stderr).toContain('Generating card for octocat');
@@ -173,7 +174,7 @@ describe('ghcard design', () => {
     expect(init.json.data.output).toBe(file);
     expect(api.requests[0]!.search.get('repo')).toBe('hello-world');
 
-    await cli(['card', 'octocat', '--design', file], { fetch: api.fetch, env });
+    await cli(['create', 'octocat', '--design', file], { fetch: api.fetch, env });
     expect(api.requests[1]!.body).toMatchObject({ design: DESIGN });
     expect(api.requests[1]!.body).not.toHaveProperty('template');
   });
@@ -182,14 +183,14 @@ describe('ghcard design', () => {
     const file = join(dir, 'd.json');
     await writeFile(file, '[1]');
     const api = fakeApi({});
-    expect((await cli(['card', 'octocat', '--design', file, '-t', 'social'], { fetch: api.fetch, env })).code).toBe(2);
-    expect((await cli(['card', 'octocat', '--design', file], { fetch: api.fetch, env })).code).toBe(2);
+    expect((await cli(['create', 'octocat', '--design', file, '-t', 'social'], { fetch: api.fetch, env })).code).toBe(2);
+    expect((await cli(['create', 'octocat', '--design', file], { fetch: api.fetch, env })).code).toBe(2);
     expect(api.requests).toHaveLength(0);
   });
 
   it('reads a design from stdin', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
-    await cli(['card', 'octocat', '--design', '-'], { fetch: api.fetch, env, stdin: JSON.stringify(DESIGN) });
+    await cli(['create', 'octocat', '--design', '-'], { fetch: api.fetch, env, stdin: JSON.stringify(DESIGN) });
     expect(api.requests[0]!.body).toMatchObject({ design: DESIGN });
   });
 });
@@ -209,21 +210,21 @@ describe('other commands', () => {
     expect(free.json.data).toHaveLength(1);
   });
 
-  it('cards delete needs --yes without a terminal', async () => {
+  it('delete needs --yes without a terminal', async () => {
     const api = fakeApi({ 'DELETE /cards/AAAAAAAAAAAAAAAA': () => ok({ id: CARD.id }) });
-    const refused = await cli(['cards', 'delete', CARD.id], { fetch: api.fetch, env });
+    const refused = await cli(['delete', CARD.id], { fetch: api.fetch, env });
     expect(refused.code).toBe(2);
     expect(refused.json.error.message).toContain('--yes');
-    const done = await cli(['cards', 'delete', CARD.id, '--yes'], { fetch: api.fetch, env });
+    const done = await cli(['delete', CARD.id, '--yes'], { fetch: api.fetch, env });
     expect(done.json.data.deleted).toEqual([CARD.id]);
   });
 
-  it('cards list follows cursors with --all', async () => {
+  it('list follows cursors with --all', async () => {
     const api = fakeApi({
       'GET /cards': req =>
         req.search.get('cursor') ? ok({ cards: [CARD], nextCursor: null }) : ok({ cards: [CARD], nextCursor: '1:x' }),
     });
-    const r = await cli(['cards', 'list', '--all'], { fetch: api.fetch, env });
+    const r = await cli(['list', '--all'], { fetch: api.fetch, env });
     expect(r.json.data.cards).toHaveLength(2);
     expect(r.json.data.nextCursor).toBeNull();
   });
@@ -262,6 +263,30 @@ describe('other commands', () => {
     expect(r.stdout.trim()).toBe(CARD.editUrl);
     expect(opened).toBe('');
     expect((await cli(['open', 'BBBBBBBBBBBBBBBB'], { fetch: api.fetch, env })).code).toBe(4);
+  });
+
+  it('names the replacement for a renamed command', async () => {
+    const r = await cli(['card', 'octocat'], { fetch: fakeApi({}).fetch, env });
+    expect(r.code).toBe(2);
+    expect(r.json.error.message).toBe("unknown command 'card' (did you mean 'create'?)");
+  });
+
+  it('prints grouped help for `ghcard` alone, with one line per command', async () => {
+    const r = await cli([], { fetch: fakeApi({}).fetch, env, tty: true });
+    expect(r.code).toBe(0);
+    expect(r.stdout.indexOf('ghcard turns')).toBeLessThan(r.stdout.indexOf('Usage:'));
+    for (const heading of ['Cards:', 'Catalogue (no key needed):', 'Account and agents:']) {
+      expect(r.stdout).toContain(heading);
+    }
+    expect(r.stdout).toMatch(/^ {2}create <subject> +Create a card for a user or repo/m);
+    expect(r.stdout).not.toContain('The request is idempotent');
+    expect(r.stdout).toContain("Run 'ghcard <command> --help'");
+  });
+
+  it('prints help for a command group without a subcommand', async () => {
+    const r = await cli(['auth'], { fetch: fakeApi({}).fetch, env, tty: true });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/^ {2}login +Save an API key/m);
   });
 
   it('--version prints the version', async () => {

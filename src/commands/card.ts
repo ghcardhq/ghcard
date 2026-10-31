@@ -21,12 +21,15 @@ interface CardOptions {
   dryRun?: boolean;
 }
 
-export function registerCard(program: Command, app: App): void {
+export function registerCreate(program: Command, app: App): void {
   program
-    .command('card')
+    .command('create')
+    .helpGroup('Cards:')
+    .summary('Create a card for a user or repo and print its links')
     .argument('<subject>', 'user or owner/repo (a GitHub URL also works)')
     .description(
-      `Create a card (or reuse the identical one) and print its link.
+      `Create a card for a GitHub profile or repository, or reuse the identical one,
+and print its link.
 
 The request is idempotent: the same subject, template, palette and watermark
 setting always return the same card and link, so it is safe to run in CI on
@@ -58,13 +61,13 @@ need Pro. Free accounts always get the watermark; --no-watermark needs Pro.`
       'after',
       `
 Examples:
-  ghcard card octocat
-  ghcard card octocat/hello-world --template repo-dark-terminal
-  ghcard card octocat --palette sage --embed markdown
-  ghcard card octocat --format png --output card.png
-  ghcard card octocat --readme README.md
-  ghcard card octocat --design design.json --dry-run
-  ghcard card octocat --design design.json
+  ghcard create octocat
+  ghcard create octocat/hello-world --template repo-dark-terminal
+  ghcard create octocat --palette sage --embed markdown
+  ghcard create octocat --format png --output card.png
+  ghcard create octocat --readme README.md
+  ghcard create octocat --design design.json --dry-run
+  ghcard create octocat --design design.json
 `
     )
     .action(async (subjectArg: string, opts: CardOptions) => {
@@ -162,13 +165,13 @@ function useSnapshotLinks(card: CreatedCard, format: string): void {
   };
 }
 
-export function registerCards(program: Command, app: App): void {
-  const cards = program.command('cards').description('List or delete the cards this account generated');
-
-  cards
+export function registerList(program: Command, app: App): void {
+  program
     .command('list')
     .alias('ls')
-    .description('List your cards, most recently requested first')
+    .helpGroup('Cards:')
+    .summary('List the cards you created')
+    .description('List the cards you created, most recently requested first.')
     .option('-n, --limit <n>', 'cards per page (1-100)', value => Number.parseInt(value, 10), 20)
     .option('--cursor <cursor>', 'continue from a previous page')
     .option('--all', 'fetch every page')
@@ -187,19 +190,25 @@ export function registerCards(program: Command, app: App): void {
       }
       app.printer.success({ cards: all, nextCursor: next }, w => {
         if (all.length === 0) {
-          w.write('No cards yet. Create one with `ghcard card <user>`.\n');
+          w.write('No cards yet. Create one with `ghcard create <user>`.\n');
           return;
         }
         table(w, ['ID', 'SUBJECT', 'TEMPLATE', 'SVG'], all.map(c => [c.id, c.subject, c.template, c.urls.svg]));
-        if (next !== null) w.write(`\nMore: ghcard cards list --cursor ${next} (or --all)\n`);
+        if (next !== null) w.write(`\nMore: ghcard list --cursor ${next} (or --all)\n`);
       });
     });
+}
 
-  cards
+export function registerDelete(program: Command, app: App): void {
+  program
     .command('delete')
     .alias('rm')
+    .helpGroup('Cards:')
     .argument('<card-id...>', 'one or more card ids')
-    .description('Delete cards; their links stop working')
+    .summary('Delete cards; their links stop working')
+    .description(
+      'Delete cards. Their links stop working everywhere they are embedded.\nAsks for confirmation on a terminal; pass --yes in scripts.'
+    )
     .option('-y, --yes', 'do not ask for confirmation')
     .action(async (ids: string[], opts: { yes?: boolean }) => {
       if (!opts.yes && !app.printer.json) {

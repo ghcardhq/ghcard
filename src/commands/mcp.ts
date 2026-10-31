@@ -6,6 +6,8 @@ import { VERSION, type App } from '../app.js';
 export function registerMcp(program: Command, app: App): void {
   program
     .command('mcp')
+    .helpGroup('Account and agents:')
+    .summary('Run an MCP server on stdio for AI agents')
     .description(
       `Run a Model Context Protocol server on stdio for AI agents.
 
