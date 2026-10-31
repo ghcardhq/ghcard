@@ -137,6 +137,11 @@ your disk. Tools: `create_card` (template or custom `design`),
 `list_components`, `get_template_design`, `get_card_design`, `list_cards`,
 `delete_card`, `get_usage`.
 
+Listing tools, templates, palettes and components works without a key.
+Creating cards needs `GHCARD_API_KEY`: sign in at
+[githubcard.com/dashboard](https://githubcard.com/dashboard) and create a free
+key under **API keys**. It starts with `ghc_`.
+
 Claude Code:
 
 ```bash
@@ -155,6 +160,13 @@ Claude Desktop, Cursor, and other clients (`mcpServers` config):
     }
   }
 }
+```
+
+Docker (the image runs `ghcard mcp`):
+
+```bash
+docker build -t ghcard https://github.com/ghcardhq/ghcard.git
+docker run -i --rm -e GHCARD_API_KEY ghcard
 ```
 
 Failed tool calls return `isError: true` with the same `code`, `retryable`
