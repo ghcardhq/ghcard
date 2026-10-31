@@ -4,11 +4,11 @@ Generate [GitHubCard](https://githubcard.com) profile and repository cards from
 the command line, from CI, or from an AI agent over MCP.
 
 ```bash
-npx -y ghcard create octocat                     # profile card; prints SVG/PNG links
-npx -y ghcard create octocat/hello-world         # repository card
-npx -y ghcard create octocat --embed markdown    # just the README snippet
-npx -y ghcard create octocat --readme README.md  # insert or update it in a README
-npx -y ghcard create octocat -f png -o card.png  # download the image
+npx -y @ghcardhq/ghcard create octocat                     # profile card; prints SVG/PNG links
+npx -y @ghcardhq/ghcard create octocat/hello-world         # repository card
+npx -y @ghcardhq/ghcard create octocat --embed markdown    # just the README snippet
+npx -y @ghcardhq/ghcard create octocat --readme README.md  # insert or update it in a README
+npx -y @ghcardhq/ghcard create octocat -f png -o card.png  # download the image
 ```
 
 ## Install
@@ -16,10 +16,11 @@ npx -y ghcard create octocat -f png -o card.png  # download the image
 Needs Node.js 20 or later.
 
 ```bash
-npm install -g ghcard
+npm install -g @ghcardhq/ghcard
 ```
 
-Or run it without installing: `npx -y ghcard <command>`. The examples below
+Either way the command is `ghcard`. Or run it without installing:
+`npx -y @ghcardhq/ghcard <command>`. The examples below
 assume a global install.
 
 ## Authenticate
@@ -126,7 +127,7 @@ your disk. Tools: `create_card` (template or custom `design`),
 Claude Code:
 
 ```bash
-claude mcp add githubcard --env GHCARD_API_KEY=ghc_live_... -- npx -y ghcard mcp
+claude mcp add githubcard --env GHCARD_API_KEY=ghc_live_... -- npx -y @ghcardhq/ghcard mcp
 ```
 
 Claude Desktop, Cursor, and other clients (`mcpServers` config):
@@ -136,7 +137,7 @@ Claude Desktop, Cursor, and other clients (`mcpServers` config):
   "mcpServers": {
     "githubcard": {
       "command": "npx",
-      "args": ["-y", "ghcard", "mcp"],
+      "args": ["-y", "@ghcardhq/ghcard", "mcp"],
       "env": { "GHCARD_API_KEY": "ghc_live_..." }
     }
   }

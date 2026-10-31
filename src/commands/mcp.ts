@@ -18,7 +18,7 @@ CLI (flag, $GHCARD_API_KEY, or the config file). Example client config:
     "mcpServers": {
       "githubcard": {
         "command": "npx",
-        "args": ["-y", "ghcard", "mcp"],
+        "args": ["-y", "@ghcardhq/ghcard", "mcp"],
         "env": { "GHCARD_API_KEY": "ghc_live_..." }
       }
     }
