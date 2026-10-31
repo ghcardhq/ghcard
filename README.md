@@ -167,7 +167,9 @@ GHCARD_BASE_URL=http://localhost:5173 npm run dev -- templates
 ```
 
 Releases: bump `version` in `package.json`, then push a matching `v*` tag. The
-release workflow publishes to npm with provenance.
+release workflow publishes `@ghcardhq/ghcard` to npm through
+[trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm
+token is stored in the repository and each release carries provenance.
 
 ## License
 

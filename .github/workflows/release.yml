@@ -1,5 +1,10 @@
-# Pushing a tag like v0.1.0 publishes the package to npm with provenance.
-# The tag must match the version in package.json. Needs an NPM_TOKEN secret.
+# Pushing a tag like v0.2.0 publishes the package to npm. The tag must match
+# the version in package.json.
+#
+# Publishing uses npm trusted publishing: npm trusts this workflow file in
+# ghcardhq/ghcard through GitHub's OIDC token, so no npm token is stored here,
+# and npm adds provenance automatically. The trusted publisher is configured on
+# npmjs.com (package settings), naming this repository and `release.yml`.
 name: release
 
 on:
@@ -15,14 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Node 24 ships npm 11, which trusted publishing needs (11.5.1 or later).
+      # No dependency cache: a release builds from a clean install.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - name: Check the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public
