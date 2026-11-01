@@ -1,3 +1,12 @@
+<p align="center">
+  <a href="https://githubcard.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://githubcard.com/brand/githubcard-lockup-white.svg">
+      <img src="https://githubcard.com/brand/githubcard-lockup.svg" alt="GitHubCard" height="48">
+    </picture>
+  </a>
+</p>
+
 # ghcard
 
 Generate [GitHubCard](https://githubcard.com) profile and repository cards from
