@@ -28,6 +28,13 @@ function errorBody(result: unknown): Record<string, any> {
 }
 
 describe('MCP server', () => {
+  it('reports the GitHubCard logo in serverInfo', async () => {
+    const { client } = await connect({});
+    expect(client.getServerVersion()?.icons?.map(i => i.src)).toEqual([
+      'https://githubcard.com/brand/githubcard-mark.svg',
+      'https://githubcard.com/brand/githubcard-mark-512.png',
+    ]);
+  });
   it('lists the 10 tools; update_readme only with file writes allowed', async () => {
     const { client } = await connect({});
     const names = (await client.listTools()).tools.map(t => t.name).sort();

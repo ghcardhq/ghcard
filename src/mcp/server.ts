@@ -200,10 +200,16 @@ export function cardRequest(input: CardInput): CardRequest {
   return req;
 }
 
+/** Logo shown by MCP clients next to the server name. */
+const SERVER_ICONS = [
+  { src: 'https://githubcard.com/brand/githubcard-mark.svg', mimeType: 'image/svg+xml' },
+  { src: 'https://githubcard.com/brand/githubcard-mark-512.png', mimeType: 'image/png', sizes: ['512x512'] },
+];
+
 /** Build the server with its tools registered. */
 export function createServer(options: ServerOptions): McpServer {
   const server = new McpServer(
-    { name: 'githubcard', title: 'GitHubCard', version: options.version },
+    { name: 'githubcard', title: 'GitHubCard', version: options.version, icons: SERVER_ICONS },
     { instructions: INSTRUCTIONS }
   );
   const c = options.client;
