@@ -101,6 +101,18 @@ describe('Client', () => {
     expect(calls).toBe(3);
   });
 
+  it('retries a GET whose connection dropped mid-request', async () => {
+    let calls = 0;
+    const api = fakeApi({ 'GET /palettes': () => ok({ palettes: [], proBackgrounds: [] }) });
+    const flaky = (async (input: string | URL | Request, init?: RequestInit) => {
+      calls += 1;
+      if (calls < 2) throw connectFailure('ECONNRESET');
+      return api.fetch(input, init);
+    }) as typeof fetch;
+    await new Client({ baseUrl: BASE, fetch: flaky, retryDelaysMs: [0, 0] }).palettes();
+    expect(calls).toBe(2);
+  });
+
   it('does not repeat a request that may have reached the server', async () => {
     let calls = 0;
     const reset = (async () => {

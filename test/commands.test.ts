@@ -13,6 +13,41 @@ beforeEach(async () => {
   env = { GHCARD_CONFIG: join(dir, 'config.json'), GHCARD_API_KEY: KEY };
 });
 
+describe('ghcard components', () => {
+  const COMPONENTS = {
+    components: [
+      { type: 'avatar', name: 'Avatar', description: 'User profile picture', scope: 'profile' },
+      {
+        type: 'text', name: 'Text', description: 'Custom text label', scope: 'profile',
+        options: [{ name: 'style.textAlign', type: 'enum', values: ['left', 'center', 'right'], description: 'Alignment' }],
+      },
+    ],
+    fonts: [{ name: 'Inter', value: 'Inter, sans-serif', pro: false }],
+  };
+
+  it('asks for fonts and returns settings with the fonts', async () => {
+    const api = fakeApi({ 'GET /components': () => ok(COMPONENTS) });
+    const r = await cli(['components'], { fetch: api.fetch, env });
+    expect(api.requests[0]!.search.get('include')).toBe('fonts');
+    expect(r.json.data.fonts).toEqual(COMPONENTS.fonts);
+    expect(r.json.data.components[1].options[0].name).toBe('style.textAlign');
+  });
+
+  it('accepts a server that still answers the bare array', async () => {
+    const api = fakeApi({ 'GET /components': () => ok(COMPONENTS.components) });
+    const r = await cli(['components'], { fetch: api.fetch, env });
+    expect(r.json.data).toEqual({ components: COMPONENTS.components, fonts: [] });
+  });
+
+  it('shows one widget, and rejects an unknown type', async () => {
+    const api = fakeApi({ 'GET /components': () => ok(COMPONENTS) });
+    const one = await cli(['components', 'text'], { fetch: api.fetch, env });
+    expect(one.json.data.type).toBe('text');
+    const bad = await cli(['components', 'nope'], { fetch: api.fetch, env });
+    expect(bad.code).toBe(2);
+  });
+});
+
 describe('ghcard create', () => {
   it('prints one JSON document when piped', async () => {
     const api = fakeApi({ 'POST /cards': () => ok(CREATED) });
@@ -32,7 +67,8 @@ describe('ghcard create', () => {
   it('downloads the image and inserts the README block', async () => {
     const api = fakeApi({
       'POST /cards': () => ok(CREATED),
-      [CREATED.url]: () => new Response('<svg/>', { headers: { 'Content-Type': 'image/svg+xml' } }),
+      // The published snapshot: stored bytes, no re-render.
+      [CARD.snapshotUrls.svg]: () => new Response('<svg/>', { headers: { 'Content-Type': 'image/svg+xml' } }),
     });
     const out = join(dir, 'card.svg');
     const readme = join(dir, 'README.md');
@@ -46,9 +82,23 @@ describe('ghcard create', () => {
     expect(await readFile(readme, 'utf8')).toContain(CARD.embed.markdown);
   });
 
+  it('falls back to the live image when the snapshot download fails', async () => {
+    const api = fakeApi({
+      'POST /cards': () => ok({ ...CREATED, url: CARD.urls.png }),
+      [CARD.snapshotUrls.png]: () => new Response('nope', { status: 502 }),
+      [CARD.urls.png]: () => new Response('PNG', { headers: { 'Content-Type': 'image/png' } }),
+    });
+    const out = join(dir, 'c.png');
+    const r = await cli(['create', 'octocat', '-f', 'png', '-o', out], { fetch: api.fetch, env });
+    expect(r.code).toBe(0);
+    expect(await readFile(out, 'utf8')).toBe('PNG');
+    expect(r.json.data.warnings).toBeUndefined();
+  });
+
   it('keeps going with a warning when the download fails', async () => {
     const api = fakeApi({
       'POST /cards': () => ok({ ...CREATED, url: CARD.urls.png }),
+      [CARD.snapshotUrls.png]: () => new Response('nope', { status: 502 }),
       [CARD.urls.png]: () => new Response('nope', { status: 502 }),
     });
     const readme = join(dir, 'README.md');

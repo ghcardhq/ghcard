@@ -40,7 +40,14 @@ warns about clipped layers). Keep version and any other fields you do not change
 dataSource, ownerId, meta and showWatermark are replaced by the server.
 Widgets scale to their box. Text colours come from artboard.style (textColor,
 secondaryTextColor, accentColor) or a layer's style; when you change the background a
-lot, set them too so text stays readable.
+lot, set them too so text stays readable. list_components gives each widget's settings
+and the usable fonts: a "text" layer takes "text" ("\n" breaks lines) and style
+fontSize/fontWeight/textColor/textAlign/backgroundColor/borderColor/borderWidth, which is
+enough for headlines, labels, and filled boxes or pills. Chinese, Japanese and Korean
+text renders through Noto Sans SC.
+For Star History (repo cards) add a repoStarsHistory layer with only position, size and
+style (style.starHistoryPreset: hand-drawn, editorial, or poster); the server fills the
+star data. Its numbers are a snapshot taken when the card is created.
 Plain solid colours are free; gradients and patterns are free only when they are a free
 preset, a list_palettes palette, or a free template's own background. On Free, the editor's Pro fonts and background presets fail
 with PRO_FEATURE (details.features lists each path); fonts and backgrounds that free
@@ -282,10 +289,13 @@ export function createServer(options: ServerOptions): McpServer {
     'list_components',
     {
       title: 'List widget types',
-      description: 'List the widget (layer) types a design can contain, with the scope (profile/repo) each fits.',
+      description:
+        'List the widget (layer) types a design can contain: the scope (profile/repo) each fits, ' +
+        'the layer settings each reads ("options", e.g. a text layer\'s style.textAlign or ' +
+        'style.backgroundColor), and the font families the renderer embeds ("fonts").',
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    guarded(async () => ({ components: await c.components() }))
+    guarded(async () => ({ ...(await c.components()) }))
   );
 
   server.registerTool(

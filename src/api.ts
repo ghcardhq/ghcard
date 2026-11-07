@@ -158,11 +158,33 @@ export interface Palettes {
   proBackgrounds: ProBackground[];
 }
 
+/** A layer setting a widget reads, e.g. "style.textAlign". */
+export interface ComponentOption {
+  name: string;
+  type: string;
+  values?: string[];
+  description: string;
+}
+
 export interface Component {
   type: string;
   name: string;
   description: string;
   scope: string;
+  /** Settings beyond position and size; absent on servers before 2026-11. */
+  options?: ComponentOption[];
+}
+
+/** A font family the renderer embeds; `value` goes in style.fontFamily. */
+export interface FontOption {
+  name: string;
+  value: string;
+  pro: boolean;
+}
+
+export interface Components {
+  components: Component[];
+  fonts: FontOption[];
 }
 
 export interface Account {
@@ -213,11 +235,29 @@ const CONNECT_ERROR_CODES = new Set([
   'UND_ERR_CONNECT_TIMEOUT',
 ]);
 
-/** True when fetch failed before any request reached the server. */
-function isConnectFailure(cause: unknown): boolean {
-  if (!(cause instanceof Error) || cause.name === 'TimeoutError' || cause.name === 'AbortError') return false;
+/**
+ * Codes for a connection that dropped after it was set up. The request may
+ * have reached the server, so only idempotent requests (GET) retry on these.
+ */
+const DROPPED_ERROR_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'UND_ERR_SOCKET',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+]);
+
+function causeCode(cause: unknown): string | undefined {
+  if (!(cause instanceof Error) || cause.name === 'TimeoutError' || cause.name === 'AbortError') return undefined;
   const inner = (cause as { cause?: { code?: unknown } }).cause;
-  return typeof inner?.code === 'string' && CONNECT_ERROR_CODES.has(inner.code);
+  return typeof inner?.code === 'string' ? inner.code : undefined;
+}
+
+/** True when repeating the request is safe: never sent, or sent but idempotent. */
+function isRetryableFailure(cause: unknown, idempotent: boolean): boolean {
+  const code = causeCode(cause);
+  if (code === undefined) return false;
+  return CONNECT_ERROR_CODES.has(code) || (idempotent && DROPPED_ERROR_CODES.has(code));
 }
 
 /** Fields of an error body kept as details. */
@@ -239,18 +279,20 @@ export class Client {
   }
 
   /**
-   * Fetch, retrying only when the connection itself failed. Such a request
-   * never reached the server, so repeating it is safe for every endpoint,
-   * creating a card included. A timeout or a failure after the request was
-   * sent is not retried here: the server may still be working on it.
+   * Fetch, retrying when the connection failed. A connection that was never
+   * set up means the request never reached the server, so repeating it is
+   * safe for every endpoint, creating a card included. A connection that
+   * dropped mid-request is retried only for GET, which has no side effects.
+   * A timeout is not retried here: the server may still be working on it.
    */
   private async fetchWithRetry(target: string, init: RequestInit): Promise<Response> {
+    const idempotent = (init.method ?? 'GET').toUpperCase() === 'GET';
     for (let attempt = 0; ; attempt++) {
       try {
         return await this.fetchImpl(target, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
       } catch (cause) {
         const delay = this.retryDelaysMs[attempt];
-        if (delay === undefined || !isConnectFailure(cause)) throw cause;
+        if (delay === undefined || !isRetryableFailure(cause, idempotent)) throw cause;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -391,8 +433,16 @@ export class Client {
     return (await this.request<Palettes>('GET', '/palettes', { auth: false })).data;
   }
 
-  async components(): Promise<Component[]> {
-    return (await this.request<Component[]>('GET', '/components', { auth: false })).data;
+  /** Widget types with their settings, plus embeddable fonts. */
+  async components(): Promise<Components> {
+    const data = (
+      await this.request<Component[] | Components>('GET', '/components', {
+        query: { include: 'fonts' },
+        auth: false,
+      })
+    ).data;
+    // Older servers ignore `include` and answer the bare array.
+    return Array.isArray(data) ? { components: data, fonts: [] } : data;
   }
 
   /** Fetch a rendered card image. Card URLs are public, so no key is sent. */

@@ -49,11 +49,32 @@ export function registerCatalogue(program: Command, app: App): void {
   program
     .command('components')
     .helpGroup('Catalogue (no key needed):')
-    .description('List the widget types a card can contain')
-    .action(async () => {
-      const components = await (await app.client()).components();
-      app.printer.success(components, w => {
+    .description('List the widget types a card can contain, their settings, and fonts')
+    .argument('[type]', 'show the settings of one widget type')
+    .action(async (type: string | undefined) => {
+      const { components, fonts } = await (await app.client()).components();
+      if (type) {
+        const component = components.find(c => c.type === type);
+        if (!component) throw new UsageError(`unknown widget type "${type}"; run \`ghcard components\``);
+        app.printer.success(component, w => {
+          w.write(`${component.type} (${component.scope}): ${component.description}\n`);
+          if (!component.options?.length) return void w.write('No settings beyond x, y, width, height.\n');
+          w.write('\n');
+          table(
+            w,
+            ['SETTING', 'TYPE', 'DESCRIPTION'],
+            component.options.map(o => [o.name, o.values ? o.values.join('|') : o.type, o.description])
+          );
+        });
+        return;
+      }
+      app.printer.success({ components, fonts }, w => {
         table(w, ['TYPE', 'SCOPE', 'DESCRIPTION'], components.map(c => [c.type, c.scope, c.description]));
+        if (fonts.length) {
+          w.write('\nFonts (style.fontFamily):\n');
+          table(w, ['VALUE', 'PLAN'], fonts.map(f => [f.value, f.pro ? 'pro' : 'free']));
+        }
+        w.write('\nRun `ghcard components <type>` for a widget\'s settings.\n');
       });
     });
 

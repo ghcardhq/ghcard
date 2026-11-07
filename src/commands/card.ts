@@ -104,7 +104,13 @@ Examples:
         // The card exists and costs quota already; a failed download must not
         // hide it or skip the README update.
         try {
-          const body = await client.download(card.url);
+          // The snapshot is the image this request just published, stored
+          // as-is, so it downloads without re-rendering; the live link may
+          // re-render from GitHub data first. Fall back to the live link.
+          const snapshot = opts.format === 'png' ? card.snapshotUrls?.png : card.snapshotUrls?.svg;
+          const body = snapshot
+            ? await client.download(snapshot).catch(() => client.download(card.url))
+            : await client.download(card.url);
           try {
             await writeFile(opts.output, body, { mode: 0o644 });
             result.output = opts.output;
