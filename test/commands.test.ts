@@ -328,6 +328,15 @@ describe('other commands', () => {
     expect(r.json.data.nextCursor).toBeNull();
   });
 
+  it.each(['0', '101'])('rejects a list limit outside 1..100 (%s)', async limit => {
+    const api = fakeApi({});
+    const r = await cli(['list', '--limit', limit], { fetch: api.fetch, env });
+    expect(r.code).toBe(2);
+    expect(r.json.error.code).toBe('USAGE');
+    expect(r.json.error.message).toContain('1 to 100');
+    expect(api.requests).toHaveLength(0);
+  });
+
   it('auth login verifies the key and saves it with mode 0600', async () => {
     const api = fakeApi({
       'GET /usage': () => ok({ username: 'octocat', tier: 'free', tierExpiresAt: '', cards: {}, ai: {} }),

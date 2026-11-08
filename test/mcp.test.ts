@@ -56,6 +56,14 @@ describe('MCP server', () => {
     expect(client.getInstructions()).toContain('GitHubCard turns a GitHub user or repository');
   });
 
+  it('publishes precise input bounds for model-side validation', async () => {
+    const { client } = await connect({});
+    const tools = Object.fromEntries((await client.listTools()).tools.map(tool => [tool.name, tool]));
+    expect((tools.create_card?.inputSchema as any).properties.format.enum).toEqual(['svg', 'png']);
+    expect((tools.list_templates?.inputSchema as any).properties.scope.enum).toEqual(['profile', 'repo']);
+    expect((tools.list_cards?.inputSchema as any).properties.limit).toMatchObject({ minimum: 1, maximum: 100 });
+  });
+
   it('create_card turns a URL subject into a repo request', async () => {
     const { client, api } = await connect({ 'POST /cards': () => ok(CREATED) });
     const result = await client.callTool({

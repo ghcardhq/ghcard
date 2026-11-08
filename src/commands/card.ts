@@ -184,7 +184,9 @@ export function registerList(program: Command, app: App): void {
     .option('--cursor <cursor>', 'continue from a previous page')
     .option('--all', 'fetch every page')
     .action(async (opts: { limit: number; cursor?: string; all?: boolean }) => {
-      if (!Number.isInteger(opts.limit)) throw new UsageError('--limit must be a number');
+      if (!Number.isInteger(opts.limit) || opts.limit < 1 || opts.limit > 100) {
+        throw new UsageError('--limit must be an integer from 1 to 100');
+      }
       const client = await app.authedClient();
       const all: Card[] = [];
       let cursor = opts.cursor ?? '';

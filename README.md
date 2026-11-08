@@ -101,7 +101,7 @@ backgrounds fail with `PRO_FEATURE`, and `error.details.features` lists them.
 
 The same subject, template, palette and watermark setting always return the
 same card and link (`"created": false` on repeats). Running
-`ghcard create me --readme README.md` on every CI push keeps one card and one
+`ghcard create <your-username> --readme README.md` on every CI push keeps one card and one
 README block. Card images show live GitHub data, so there is no need to
 regenerate a card to refresh it.
 
@@ -130,7 +130,7 @@ Progress messages go to stderr. Exit codes:
 | 5 | Quota exhausted; see `error.details.retryAfterSeconds` |
 | 6 | Temporarily unavailable; retrying is safe |
 
-`cards delete` asks for confirmation on a terminal and requires `--yes`
+`ghcard delete` asks for confirmation on a terminal and requires `--yes`
 otherwise.
 
 ## MCP server
@@ -149,7 +149,7 @@ your disk. Tools: `create_card` (template or custom `design`),
 Listing tools, templates, palettes and components works without a key.
 Creating cards needs `GHCARD_API_KEY`: sign in at
 [githubcard.com/dashboard](https://githubcard.com/dashboard) and create a free
-key under **API keys**. It starts with `ghc_`.
+key under **API keys**. It starts with `ghc_live_`.
 
 Claude Code:
 

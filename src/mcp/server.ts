@@ -20,7 +20,8 @@ Typical flow:
 1. Optionally call list_templates (scope "profile" or "repo") and list_palettes to pick ids.
 2. Call create_card with the subject. It returns SVG/PNG links and Markdown/HTML embed snippets.
    It is idempotent: the same parameters return the same card and link.
-3. To place it in a README, use update_readme with embed.markdown (or insert it yourself).
+3. To place it in a README, use update_readme with embed.markdown when the local server
+   was started with --allow-file-writes. Otherwise insert it yourself.
    Share urls (live, re-render with current data); snapshotUrls are frozen images.
 
 Custom layouts (any hex background, size, font, or adding/removing/moving widgets):
@@ -170,7 +171,7 @@ const cardInput = {
       "background palette id from list_palettes; omit for the template's own background. For any other colour use design"
     ),
   format: z
-    .string()
+    .enum(['svg', 'png'])
     .optional()
     .describe('which link to return as url: "svg" (default; best for README embeds) or "png". Both are always in urls'),
   watermark: z.boolean().optional().describe('false removes the watermark (Pro only; ignored on Free)'),
@@ -253,7 +254,7 @@ export function createServer(options: ServerOptions): McpServer {
         'List card layouts with their ids, scope (profile/repo/all), size, widget types, and whether they need Pro.',
       inputSchema: {
         scope: z
-          .string()
+          .enum(['profile', 'repo'])
           .optional()
           .describe('profile or repo; omit for all. Results include scope=all templates, which fit both'),
         freeOnly: z.boolean().optional().describe('only templates available on the Free plan'),
@@ -348,7 +349,7 @@ export function createServer(options: ServerOptions): McpServer {
       description:
         'List cards this account created through the API, most recently requested first. Paginated with nextCursor.',
       inputSchema: {
-        limit: z.number().int().optional().describe('page size 1-100 (default 20)'),
+        limit: z.number().int().min(1).max(100).optional().describe('page size 1-100 (default 20)'),
         cursor: z.string().optional().describe('nextCursor from a previous call'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
